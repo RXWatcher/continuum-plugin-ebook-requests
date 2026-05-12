@@ -2,7 +2,7 @@ module github.com/ContinuumApp/continuum-plugin-ebookdb
 
 go 1.26.0
 
-replace github.com/ContinuumApp/continuum-plugin-sdk => /opt/continuum_plugins/continuum-plugin-sdk-rh
+replace github.com/ContinuumApp/continuum-plugin-sdk => /opt/continuum_plugins/continuum-plugin-sdk
 
 require (
 	github.com/ContinuumApp/continuum-plugin-sdk v0.0.0
