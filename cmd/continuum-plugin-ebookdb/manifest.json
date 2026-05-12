@@ -1,0 +1,49 @@
+{
+  "plugin_id": "continuum.ebookdb",
+  "version": "0.1.0",
+  "checksum": "__CHECKSUM__",
+  "continuum_api_version": "v1",
+  "capabilities": [
+    {"type": "http_routes.v1", "id": "backend",
+     "display_name": "EbookDB backend",
+     "description": "Anna's-Archive-style ebook source: catalog, file streaming, external_search, request forwarding."},
+    {"type": "event_consumer.v1", "id": "request_handler",
+     "display_name": "Request handler",
+     "description": "Forwards ebook request_submitted events to EbookDB downloads.",
+     "subscriptions": ["plugin.continuum.ebooks.request_submitted"]},
+    {"type": "ebook_backend.v1", "id": "default",
+     "display_name": "EbookDB (Anna's Archive)",
+     "description": "External-fetch ebook source backed by an EbookDB instance."},
+    {"type": "scheduled_task.v1", "id": "reconciler",
+     "display_name": "Reconcile EbookDB download status",
+     "description": "Polls upstream EbookDB for status changes on non-terminal downloads.",
+     "cron": "*/1 * * * *"}
+  ],
+  "http_routes": [
+    {"id": "api", "method": "*", "path": "/api/v1/*", "access": "authenticated"}
+  ],
+  "global_config_schema": [
+    {"key": "database_url", "title": "Postgres connection string",
+     "description": "DSN for the dedicated ebookdb schema.",
+     "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}",
+     "required": true,
+     "admin_form": {"fields": [{"key": "value", "label": "Connection URL", "control": "ADMIN_FORM_CONTROL_PASSWORD", "required": true, "secret": true}]}},
+    {"key": "base_url", "title": "EbookDB base URL",
+     "description": "e.g. https://ebookdb.example.com (no trailing slash).",
+     "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}",
+     "required": true,
+     "admin_form": {"fields": [{"key": "value", "label": "URL", "control": "ADMIN_FORM_CONTROL_TEXT", "required": true}]}},
+    {"key": "api_key", "title": "EbookDB API key",
+     "description": "X-API-Key header for upstream calls.",
+     "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}",
+     "required": true,
+     "admin_form": {"fields": [{"key": "value", "label": "API key", "control": "ADMIN_FORM_CONTROL_PASSWORD", "required": true, "secret": true}]}},
+    {"key": "default_cover_size", "title": "Default cover size",
+     "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}}}",
+     "admin_form": {"fields": [{"key": "value", "label": "Cover size", "control": "ADMIN_FORM_CONTROL_TEXT"}]}},
+    {"key": "external_source_priority", "title": "External source priority (ordered list)",
+     "description": "JSON array — ordered indexer list passed to EbookDB external_search.",
+     "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}}}",
+     "admin_form": {"fields": [{"key": "value", "label": "Priority list (JSON array)", "control": "ADMIN_FORM_CONTROL_TEXT"}]}}
+  ]
+}
