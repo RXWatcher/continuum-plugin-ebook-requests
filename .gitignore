@@ -1,0 +1,4 @@
+/continuum-plugin-ebookdb
+*.test
+*.out
+.envrc
