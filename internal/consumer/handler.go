@@ -1,6 +1,6 @@
 // Package consumer implements the event_consumer.v1 handler for
-// request_submitted events. Unlike bookwarehouse-ebook, it requires
-// a source_id (Anna's-Archive md5) in the payload.
+// request_submitted events. It requires a source_id (Anna's Archive md5) in
+// the payload.
 package consumer
 
 import (

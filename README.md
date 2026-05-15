@@ -21,14 +21,6 @@ Emits to the bus: `request_acknowledged`, `request_status_changed`, `request_ful
 | `base_url` | yes | Anna's Archive downloader base URL. |
 | `api_key` | yes | `X-API-Key` for upstream calls. |
 
-## Compared to `continuum.bookwarehouse-ebook`
-
-| | `ebookdb` | `bookwarehouse-ebook` |
-|---|---|---|
-| Monitoring model | one-shot external fetch | long-lived auto-monitoring |
-| Formats | 9 (epub, pdf, mobi, azw3, fb2, lit, lrf, pdb, prc) | per-library |
-| Features advertised | `external_search` | `external_search` + optional `auto_monitoring` |
-
 ## Dependencies
 
 - Postgres role + `ebookdb` schema.

@@ -113,7 +113,7 @@ func TestConsumer_SkipsTargetMismatch(t *testing.T) {
 		EventName: "plugin.continuum.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-3",
-			"target_plugin_id": "continuum.bookwarehouse-ebook",
+			"target_plugin_id": "continuum.other-ebook-provider",
 			"title":            "X",
 		}),
 	})

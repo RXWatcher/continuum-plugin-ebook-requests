@@ -14,7 +14,13 @@
      "subscriptions": ["plugin.continuum.ebooks.request_submitted"]},
     {"type": "ebook_backend.v1", "id": "default",
      "display_name": "Anna's Archive Downloader",
-     "description": "Request/download provider backed by an Anna's Archive download service; not a presentation library source."},
+     "description": "Request/download provider backed by an Anna's Archive download service; not a presentation library source.",
+     "metadata": {
+       "ebook_roles": ["download_provider"],
+       "supports_catalog": false,
+       "supports_requests": true,
+       "supports_auto_monitoring": false
+     }},
     {"type": "scheduled_task.v1", "id": "reconciler",
      "display_name": "Reconcile Anna's Archive download status",
      "description": "Polls the upstream Anna's Archive download service for status changes on non-terminal downloads.",
