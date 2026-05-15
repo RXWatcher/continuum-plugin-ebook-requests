@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/reconciler"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/reconciler"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
 )
 
 type fakePub struct {

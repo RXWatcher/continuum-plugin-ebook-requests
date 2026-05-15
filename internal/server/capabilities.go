@@ -15,7 +15,7 @@ type capabilitiesResponse struct {
 func (s *Server) handleCapabilities(w http.ResponseWriter, _ *http.Request) {
 	resp := capabilitiesResponse{
 		Formats:                []string{"epub", "pdf", "mobi", "azw3", "azw", "djvu", "fb2", "cbz", "cbr"},
-		Features:               []string{"external_search"},
+		Features:               []string{"download_provider", "external_search", "request_snapshot", "admin_diagnostics", "provider_test_search", "supports_comics"},
 		MaxConcurrentDownloads: 2,
 		SupportsRangeRequests:  false,
 	}

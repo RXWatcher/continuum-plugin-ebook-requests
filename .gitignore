@@ -1,4 +1,5 @@
-/continuum-plugin-ebookdb
+/continuum-plugin-annas-archive-downloader
 *.test
 *.out
 .envrc
+.claude/

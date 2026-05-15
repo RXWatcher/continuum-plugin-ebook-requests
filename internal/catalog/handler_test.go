@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/catalog"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/catalog"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
 )
 
 func upstream(t *testing.T) *httptest.Server {

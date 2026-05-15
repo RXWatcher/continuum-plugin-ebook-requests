@@ -6,7 +6,7 @@ import (
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/reconciler"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/reconciler"
 )
 
 type Server struct {

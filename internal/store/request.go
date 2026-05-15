@@ -21,6 +21,15 @@ type ForwardedRequest struct {
 	UpdatedAt  time.Time
 }
 
+type RequestStats struct {
+	Total       int `json:"total"`
+	Active      int `json:"active"`
+	Failed      int `json:"failed"`
+	Imported    int `json:"imported"`
+	WithErrors  int `json:"with_errors"`
+	Unsubmitted int `json:"unsubmitted"`
+}
+
 var ErrNotFound = errors.New("not found")
 
 func (s *Store) UpsertForwardedRequest(ctx context.Context, r ForwardedRequest) error {
@@ -109,4 +118,22 @@ func (s *Store) ListNonTerminal(ctx context.Context, limit int) ([]ForwardedRequ
 		out = append(out, r)
 	}
 	return out, nil
+}
+
+func (s *Store) RequestStats(ctx context.Context) (RequestStats, error) {
+	row := s.pool.QueryRow(ctx, `
+		SELECT
+			COUNT(*)::int,
+			COUNT(*) FILTER (WHERE status NOT IN ('imported','failed'))::int,
+			COUNT(*) FILTER (WHERE status = 'failed')::int,
+			COUNT(*) FILTER (WHERE status = 'imported')::int,
+			COUNT(*) FILTER (WHERE COALESCE(error_text,'') <> '')::int,
+			COUNT(*) FILTER (WHERE COALESCE(external_id,'') = '')::int
+		FROM forwarded_request
+	`)
+	var stats RequestStats
+	if err := row.Scan(&stats.Total, &stats.Active, &stats.Failed, &stats.Imported, &stats.WithErrors, &stats.Unsubmitted); err != nil {
+		return RequestStats{}, fmt.Errorf("request stats: %w", err)
+	}
+	return stats, nil
 }

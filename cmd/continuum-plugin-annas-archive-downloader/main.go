@@ -17,23 +17,23 @@ import (
 	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
 	sdkruntime "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
 
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/httproutes"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/migrate"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/reconciler"
-	pluginrt "github.com/ContinuumApp/continuum-plugin-ebookdb/internal/runtime"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/scheduler"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/consumer"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/httproutes"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/migrate"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/reconciler"
+	pluginrt "github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/runtime"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/scheduler"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
 )
 
 //go:embed manifest.json
 var manifestRaw []byte
 
 func main() {
-	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-ebookdb"})
+	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-annas-archive-downloader"})
 
 	manifest, err := loadManifest()
 	if err != nil {
@@ -49,12 +49,23 @@ func main() {
 		reconcilerPtr atomic.Pointer[reconciler.Reconciler]
 	)
 
-	consumerHandler := consumer.New(func() *consumer.Deps { return consumerDepsP.Load() })
+	consumerHandler := consumer.New(func() *consumer.Deps { return consumerDepsP.Load() }, logger.Named("consumer"))
 	schedulerSrv := scheduler.New(func() *reconciler.Reconciler { return reconcilerPtr.Load() })
 
 	rt := pluginrt.New(manifest, func(cfg pluginrt.Config) error {
 		ctx := context.Background()
-		p, err := pgxpool.New(ctx, cfg.DatabaseURL)
+		// Explicit MaxConns cap. The pgx default scales with GOMAXPROCS and
+		// can be as low as 4; the search API + reconciler mix can starve
+		// under that. 16 is generous without saturating a shared Postgres.
+		// Operators override via DSN (?pool_max_conns=N).
+		pcfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+		if err != nil {
+			return fmt.Errorf("parse db: %w", err)
+		}
+		if pcfg.MaxConns < 16 {
+			pcfg.MaxConns = 16
+		}
+		p, err := pgxpool.NewWithConfig(ctx, pcfg)
 		if err != nil {
 			return fmt.Errorf("pgxpool: %w", err)
 		}
@@ -65,13 +76,17 @@ func main() {
 		st := store.New(p)
 		ebkClient := ebookdb.NewClient(cfg.BaseURL, cfg.APIKey)
 
-		srv := server.New(server.Deps{EbookDBClient: ebkClient})
+		srv := server.New(server.Deps{
+			EbookDBClient: ebkClient,
+			Store:         st,
+			Config:        cfg,
+		})
 		httpSrv.SetHandler(srv.Handler())
 
 		ev := event.New(sdkruntime.Host(), logger.Named("event"))
 		consumerDepsP.Store(&consumer.Deps{
 			Store: st, Pub: ev, EBK: ebkClient,
-			PluginID: "continuum.ebookdb",
+			PluginID: "continuum.annas-archive-downloader",
 		})
 		reconcilerPtr.Store(reconciler.New(reconciler.Deps{
 			Store: st, Pub: ev, EBK: ebkClient,

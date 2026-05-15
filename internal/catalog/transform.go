@@ -3,7 +3,7 @@ package catalog
 import (
 	"strings"
 
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
 )
 
 func ToSummary(b ebookdb.Book) EbookSummary {

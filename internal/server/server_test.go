@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/server"
 )
 
 func TestHealthOK(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/ContinuumApp/continuum-plugin-ebookdb
+module github.com/ContinuumApp/continuum-plugin-annas-archive-downloader
 
 go 1.26.0
 

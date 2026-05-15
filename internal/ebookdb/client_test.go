@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-ebookdb/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
 )
 
 func TestClient_SendsAPIKeyHeader(t *testing.T) {
