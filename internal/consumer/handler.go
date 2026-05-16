@@ -53,10 +53,10 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 		return &pluginv1.HandleEventResponse{}, nil
 	}
 	p := req.GetPayload().AsMap()
-	if target, _ := p["target_plugin_id"].(string); target != d.PluginID {
+	if target := targetPluginIDFromPayload(p); target != d.PluginID {
 		return &pluginv1.HandleEventResponse{}, nil
 	}
-	requestID, _ := p["request_id"].(string)
+	requestID := requestIDFromPayload(p)
 	if requestID == "" {
 		return &pluginv1.HandleEventResponse{}, nil
 	}
@@ -78,7 +78,8 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 				"request_id", requestID, "err", err)
 		}
 		d.Pub.Publish(ctx, "request_failed", map[string]any{
-			"request_id": requestID, "reason": reason,
+			"request_id": requestID, "requestId": requestID,
+			"provider_plugin_id": d.PluginID, "reason": reason,
 		})
 		return &pluginv1.HandleEventResponse{}, nil
 	}
@@ -92,7 +93,8 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 				"request_id", requestID, "upstream_err", err, "db_err", uerr)
 		}
 		d.Pub.Publish(ctx, "request_failed", map[string]any{
-			"request_id": requestID, "reason": err.Error(),
+			"request_id": requestID, "requestId": requestID,
+			"provider_plugin_id": d.PluginID, "reason": err.Error(),
 		})
 		return &pluginv1.HandleEventResponse{}, nil
 	}
@@ -106,7 +108,25 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 			"request_id", requestID, "external_id", resp.ID, "db_err", uerr)
 	}
 	d.Pub.Publish(ctx, "request_acknowledged", map[string]any{
-		"request_id": requestID, "external_id": resp.ID,
+		"request_id": requestID, "requestId": requestID,
+		"external_id": resp.ID, "provider_plugin_id": d.PluginID,
 	})
 	return &pluginv1.HandleEventResponse{}, nil
+}
+
+func targetPluginIDFromPayload(p map[string]any) string {
+	for _, key := range []string{"target_plugin_id", "target_provider_plugin_id", "provider_plugin_id"} {
+		if v, _ := p[key].(string); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func requestIDFromPayload(p map[string]any) string {
+	if id, _ := p["request_id"].(string); id != "" {
+		return id
+	}
+	id, _ := p["requestId"].(string)
+	return id
 }

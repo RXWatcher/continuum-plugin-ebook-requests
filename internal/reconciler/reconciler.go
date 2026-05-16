@@ -27,9 +27,10 @@ type Publisher interface {
 }
 
 type Deps struct {
-	Store *store.Store
-	Pub   Publisher
-	EBK   *ebookdb.Client
+	Store    *store.Store
+	Pub      Publisher
+	EBK      *ebookdb.Client
+	PluginID string
 }
 
 type Reconciler struct {
@@ -101,21 +102,27 @@ func (r *Reconciler) Tick(ctx context.Context) error {
 		switch newStatus {
 		case "imported":
 			r.deps.Pub.Publish(ctx, "request_fulfilled", map[string]any{
-				"request_id":        row.RequestID,
-				"external_id":       row.ExternalID,
-				"fulfilled_book_id": snap.BookID,
+				"request_id":         row.RequestID,
+				"requestId":          row.RequestID,
+				"external_id":        row.ExternalID,
+				"fulfilled_book_id":  snap.BookID,
+				"provider_plugin_id": r.deps.PluginID,
 			})
 		case "failed":
 			r.deps.Pub.Publish(ctx, "request_failed", map[string]any{
-				"request_id":  row.RequestID,
-				"external_id": row.ExternalID,
-				"reason":      "upstream marked failed",
+				"request_id":         row.RequestID,
+				"requestId":          row.RequestID,
+				"external_id":        row.ExternalID,
+				"provider_plugin_id": r.deps.PluginID,
+				"reason":             "upstream marked failed",
 			})
 		default:
 			r.deps.Pub.Publish(ctx, "request_status_changed", map[string]any{
-				"request_id":  row.RequestID,
-				"external_id": row.ExternalID,
-				"status":      newStatus,
+				"request_id":         row.RequestID,
+				"requestId":          row.RequestID,
+				"external_id":        row.ExternalID,
+				"provider_plugin_id": r.deps.PluginID,
+				"status":             newStatus,
 			})
 		}
 	}

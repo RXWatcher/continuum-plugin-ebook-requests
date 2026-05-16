@@ -90,6 +90,7 @@ func main() {
 		})
 		reconcilerPtr.Store(reconciler.New(reconciler.Deps{
 			Store: st, Pub: ev, EBK: ebkClient,
+			PluginID: "continuum.annas-archive-downloader",
 		}))
 
 		if old := poolPtr.Swap(p); old != nil {
