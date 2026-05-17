@@ -4,6 +4,8 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"sync"
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
@@ -22,6 +24,29 @@ type Config struct {
 func (c Config) Configured() bool {
 	return c.BaseURL != "" && c.APIKey != "" && c.DatabaseURL != ""
 }
+
+func mask(s string) string {
+	if s == "" {
+		return ""
+	}
+	return "***redacted***"
+}
+
+// LogValue implements slog.LogValuer so slog.Any("cfg", c) never serializes
+// the API key or the DSN (which embeds the DB password).
+func (c Config) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("database_url", mask(c.DatabaseURL)),
+		slog.String("base_url", c.BaseURL),
+		slog.String("api_key", mask(c.APIKey)),
+		slog.String("default_cover_size", c.DefaultCoverSize),
+		slog.Any("external_source_priority", c.ExternalSourcePriority),
+	)
+}
+
+// String implements fmt.Stringer with the same redaction so fmt/log of the
+// config is also safe.
+func (c Config) String() string { return c.LogValue().String() }
 
 type Server struct {
 	runtimedefault.Server
@@ -70,6 +95,9 @@ func (s *Server) Configure(_ context.Context, req *pluginv1.ConfigureRequest) (*
 	if cfg.APIKey == "" {
 		return nil, fmt.Errorf("api_key is required")
 	}
+	if u, err := url.Parse(cfg.BaseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return nil, fmt.Errorf("base_url must be a valid http(s) URL")
+	}
 	if s.onCfg != nil {
 		if err := s.onCfg(cfg); err != nil {
 			return nil, err
@@ -84,7 +112,11 @@ func (s *Server) Configure(_ context.Context, req *pluginv1.ConfigureRequest) (*
 func (s *Server) Snapshot() Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.cfg
+	c := s.cfg
+	// Deep-copy the slice so a caller can't mutate the shared backing array
+	// while a concurrent Configure rewrites s.cfg.
+	c.ExternalSourcePriority = append([]string(nil), s.cfg.ExternalSourcePriority...)
+	return c
 }
 
 func stringFromValue(v any) string {
