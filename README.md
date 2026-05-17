@@ -14,6 +14,10 @@ Use this plugin only with content you are legally allowed to access. The plugin
 is a connector to your configured downloader; it does not provide or host
 content itself.
 
+## Detailed Operations Docs
+
+- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+
 ## Features
 
 - Listens for `plugin.continuum.ebooks.request_submitted` events.
