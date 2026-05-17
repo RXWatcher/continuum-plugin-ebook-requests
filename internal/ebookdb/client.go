@@ -19,6 +19,18 @@ const defaultTimeout = 30 * time.Second
 // memory exhaustion if the upstream returns a runaway body.
 const maxResponseBytes = 10 << 20 // 10 MiB
 
+// errBodySnippet caps how much of an upstream error body we inline into an
+// error string. The body can be up to maxResponseBytes and the error
+// propagates into logs and responses, so embedding it whole is a hazard.
+const errBodySnippet = 512
+
+func truncForError(b []byte) string {
+	if len(b) <= errBodySnippet {
+		return string(b)
+	}
+	return string(b[:errBodySnippet]) + "…(truncated)"
+}
+
 type Client struct {
 	baseURL string
 	apiKey  string
@@ -61,7 +73,7 @@ func (c *Client) Get(ctx context.Context, path string) ([]byte, error) {
 		return nil, fmt.Errorf("read body: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("upstream %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("upstream %d: %s", resp.StatusCode, truncForError(body))
 	}
 	return body, nil
 }
@@ -117,7 +129,7 @@ func (c *Client) PostJSON(ctx context.Context, path string, body []byte) ([]byte
 		return nil, fmt.Errorf("read body: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("upstream %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("upstream %d: %s", resp.StatusCode, truncForError(respBody))
 	}
 	return respBody, nil
 }
