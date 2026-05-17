@@ -85,5 +85,14 @@ func decodeMonitoring(b []byte, what string) (MonitoringResponse, error) {
 	if id == "" {
 		id = raw.ID
 	}
+	// json.Unmarshal does not error on a 2xx body that simply lacks the
+	// expected fields ({}, {"error":"not found"}, ...). Returning an empty
+	// response with a nil error would make the reconciler treat the poll as
+	// successful, hold the row's status forever, and clear any sticky
+	// error_text — silently masking a lost/forgotten upstream request. A
+	// valid monitoring response always carries an id or a status.
+	if id == "" && raw.Status == "" {
+		return MonitoringResponse{}, fmt.Errorf("decode %s: invalid monitoring response: %s", what, truncForError(b))
+	}
 	return MonitoringResponse{ID: id, Status: raw.Status, BookID: raw.BookID}, nil
 }

@@ -41,7 +41,24 @@ func NewClient(baseURL, apiKey string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		apiKey:  apiKey,
-		hc:      &http.Client{Timeout: defaultTimeout},
+		hc: &http.Client{
+			Timeout: defaultTimeout,
+			// X-API-Key is a custom header, so Go's default redirect
+			// logic (which only strips Authorization/Cookie/WWW-Auth on
+			// a cross-host hop) would forward the upstream credential to
+			// whatever host a redirect points at. The upstream is a
+			// content proxy whose redirects are followed by GetStream, so
+			// strip the key on any cross-host redirect and cap the chain.
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 10 {
+					return http.ErrUseLastResponse
+				}
+				if req.URL.Host != via[0].URL.Host {
+					req.Header.Del("X-API-Key")
+				}
+				return nil
+			},
+		},
 	}
 }
 
