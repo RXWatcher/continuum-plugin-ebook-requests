@@ -80,7 +80,9 @@ func TestConsumer_HappyPath_EmitsAcknowledged(t *testing.T) {
 	}
 }
 
-func TestConsumer_MissingSourceID_EmitsFailed(t *testing.T) {
+// The upstream searches Anna's from metadata; with neither title nor isbn
+// there is nothing to search — fail fast without calling upstream.
+func TestConsumer_MissingMetadata_EmitsFailed(t *testing.T) {
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("upstream should not be called")
 	}))
@@ -91,7 +93,7 @@ func TestConsumer_MissingSourceID_EmitsFailed(t *testing.T) {
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-2",
 			"target_plugin_id": "continuum.annas-archive-downloader",
-			"title":            "X",
+			// no title, no isbn
 		}),
 	})
 	if len(pub.pubs) != 1 || pub.pubs[0].Name != "request_failed" {

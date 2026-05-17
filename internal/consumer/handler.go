@@ -64,8 +64,10 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 	if requestID == "" {
 		return &pluginv1.HandleEventResponse{}, nil
 	}
-	sourceID, _ := p["source_id"].(string)
+	title, _ := p["title"].(string)
+	isbn, _ := p["isbn"].(string)
 	formatPref, _ := p["format_pref"].(string)
+	authors := stringSliceFromPayload(p, "authors")
 
 	// Must persist before kicking off the upstream download: if this row is
 	// lost the reconciler never polls it and the request is permanently lost
@@ -78,12 +80,16 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 		return nil, fmt.Errorf("persist submitted %s: %w", requestID, err)
 	}
 
-	if sourceID == "" {
-		reason := "source_id required for Anna's Archive downloader"
+	// The upstream searches Anna's Archive from metadata (no md5-direct
+	// path), requiring an ISBN or a title. With neither there is nothing to
+	// search — a permanent client error, so ack (don't poison-loop) and
+	// publish request_failed.
+	if title == "" && isbn == "" {
+		reason := "title or isbn required to request a download"
 		if err := d.Store.UpsertForwardedRequest(ctx, store.ForwardedRequest{
 			RequestID: requestID, Status: "failed", ErrorText: reason, UpdatedAt: time.Now(),
 		}); err != nil {
-			h.logger.Warn("upsert forwarded_request (missing source_id)",
+			h.logger.Warn("upsert forwarded_request (missing metadata)",
 				"request_id", requestID, "err", err)
 		}
 		d.Pub.Publish(ctx, "request_failed", map[string]any{
@@ -93,7 +99,9 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 		return &pluginv1.HandleEventResponse{}, nil
 	}
 
-	resp, err := d.EBK.StartDownload(ctx, sourceID, formatPref)
+	resp, err := d.EBK.AddMonitoring(ctx, ebookdb.MonitoringRequest{
+		Title: title, Authors: authors, ISBN: isbn, FormatPref: formatPref,
+	})
 	if err != nil {
 		if uerr := d.Store.UpsertForwardedRequest(ctx, store.ForwardedRequest{
 			RequestID: requestID, Status: "failed", ErrorText: err.Error(), UpdatedAt: time.Now(),
@@ -116,8 +124,8 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 		// row forever (it requires a non-empty external_id), so the started
 		// download is never polled and the request hangs permanently. Nack;
 		// the terminal guard makes redelivery idempotent. (Re-running
-		// StartDownload on the stable Anna's Archive md5 is the accepted
-		// tradeoff vs. a permanently lost request.)
+		// AddMonitoring is the accepted tradeoff vs. a permanently lost
+		// request.)
 		return nil, fmt.Errorf("persist acknowledged %s: %w", requestID, uerr)
 	}
 	d.Pub.Publish(ctx, "request_acknowledged", map[string]any{
@@ -142,4 +150,20 @@ func requestIDFromPayload(p map[string]any) string {
 	}
 	id, _ := p["requestId"].(string)
 	return id
+}
+
+// stringSliceFromPayload reads a []string from a structpb-decoded payload
+// (JSON arrays decode to []any).
+func stringSliceFromPayload(p map[string]any, key string) []string {
+	v, ok := p[key].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(v))
+	for _, e := range v {
+		if s, ok := e.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
 }

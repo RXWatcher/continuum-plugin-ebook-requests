@@ -37,10 +37,13 @@ type Paged[T any] struct {
 	Total      int    `json:"total,omitempty"`
 }
 
-// ExternalSearchHit is one result from Anna's Archive aggregator.
+// ExternalSearchHit is one result from the upstream metadata search
+// (OpenLibrary / Google Books / ISBNdb). The upstream returns no
+// Anna's-Archive md5, so SourceID carries the ISBN-13 — the stable
+// identifier the portal uses to request a download.
 type ExternalSearchHit struct {
-	SourceID  string   `json:"source_id"` // md5
-	Source    string   `json:"source"`    // "anna"
+	SourceID  string   `json:"source_id"` // ISBN-13
+	Source    string   `json:"source"`    // "openlibrary" | "googlebooks" | ...
 	Title     string   `json:"title"`
 	Authors   []string `json:"authors,omitempty"`
 	Year      int      `json:"year,omitempty"`
@@ -48,11 +51,4 @@ type ExternalSearchHit struct {
 	Formats   []string `json:"formats,omitempty"`
 	SizeBytes int64    `json:"size_bytes,omitempty"`
 	CoverURL  string   `json:"cover_url,omitempty"`
-}
-
-// DownloadResponse describes the state of an EbookDB-side download job.
-type DownloadResponse struct {
-	ID     string `json:"id"`     // EbookDB job id
-	Status string `json:"status"` // queued | downloading | imported | failed
-	BookID string `json:"book_id,omitempty"`
 }

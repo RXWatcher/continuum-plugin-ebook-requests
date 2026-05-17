@@ -68,7 +68,7 @@ func (r *Reconciler) Tick(ctx context.Context) error {
 	var firstErr error
 	for _, row := range rows {
 		// Tick budget exhausted (or cancelled): stop now. Continuing would
-		// make every remaining GetDownload/upsert fail with "context
+		// make every remaining GetMonitoring/upsert fail with "context
 		// deadline exceeded" and record that as a per-row upstream error
 		// across all the rows we didn't get to.
 		if ctx.Err() != nil {
@@ -78,7 +78,7 @@ func (r *Reconciler) Tick(ctx context.Context) error {
 			continue
 		}
 		rowCtx, rowCancel := context.WithTimeout(ctx, perRowTimeout)
-		snap, err := r.deps.EBK.GetDownload(rowCtx, row.ExternalID)
+		snap, err := r.deps.EBK.GetMonitoring(rowCtx, row.ExternalID)
 		rowCancel()
 		if err != nil {
 			if uerr := r.deps.Store.UpsertForwardedRequest(ctx, store.ForwardedRequest{
@@ -133,15 +133,20 @@ func (r *Reconciler) Tick(ctx context.Context) error {
 	return firstErr
 }
 
+// translateStatus maps the upstream monitoring status (MonitoredBook.Status:
+// monitored | searching | searching_now | found | found_pending | grabbed |
+// downloading | completed | failed | not_found) to the portal-facing status.
 func translateStatus(ebkStatus string) string {
 	switch ebkStatus {
-	case "queued":
-		return "acknowledged"
-	case "downloading":
+	case "monitored", "searching", "searching_now":
+		return "searching"
+	case "found", "found_pending":
+		return "found"
+	case "grabbed", "downloading":
 		return "downloading"
-	case "imported", "completed":
+	case "completed", "imported":
 		return "imported"
-	case "failed", "error":
+	case "failed", "not_found", "error":
 		return "failed"
 	}
 	// Unknown/unmapped upstream status: signal "no transition" so the caller

@@ -80,6 +80,37 @@ func TestReconciler_Failed(t *testing.T) {
 	}
 }
 
+// Real upstream terminal status "not_found" must resolve the request as
+// failed. Previously it hit the default branch ("acknowledged"), so a
+// not-found request never terminated and the reconciler polled it forever.
+func TestReconciler_NotFound_EmitsRequestFailed(t *testing.T) {
+	r, pub, st := newReconcilerForTest(t, `{"id":"job-1","status":"not_found"}`)
+	_ = st.UpsertForwardedRequest(context.Background(), store.ForwardedRequest{
+		RequestID: "req-1", ExternalID: "job-1", Status: "searching", UpdatedAt: time.Now(),
+	})
+	_ = r.Tick(context.Background())
+	if len(pub.pubs) != 1 || pub.pubs[0].Name != "request_failed" {
+		t.Errorf("got pubs = %v", pub.pubs)
+	}
+	row, _ := st.GetForwardedRequest(context.Background(), "req-1")
+	if row.Status != "failed" {
+		t.Errorf("row status = %q, want failed", row.Status)
+	}
+}
+
+// Upstream "grabbed" maps to downloading (in-flight, not a hold/no-op).
+func TestReconciler_Grabbed_MapsToDownloading(t *testing.T) {
+	r, pub, st := newReconcilerForTest(t, `{"id":"job-1","status":"grabbed"}`)
+	_ = st.UpsertForwardedRequest(context.Background(), store.ForwardedRequest{
+		RequestID: "req-1", ExternalID: "job-1", Status: "searching", UpdatedAt: time.Now(),
+	})
+	_ = r.Tick(context.Background())
+	if len(pub.pubs) != 1 || pub.pubs[0].Name != "request_status_changed" ||
+		pub.pubs[0].Payload["status"] != "downloading" {
+		t.Errorf("got pubs = %v", pub.pubs)
+	}
+}
+
 // An unknown/unmapped upstream status must NOT regress the request to
 // "acknowledged" and must NOT emit a status-changed event. Hold the current
 // status and just record that we polled.

@@ -76,49 +76,83 @@ func TestClient_GetBook(t *testing.T) {
 	}
 }
 
+// Upstream external search is GET /api/v1/search/external returning
+// {"results":[ExternalSearchResult]} (metadata; no Anna's md5). The hit's
+// stable identifier is the ISBN-13.
 func TestClient_ExternalSearch(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/external_search" || r.Method != "POST" {
-			t.Errorf("expected POST /api/v1/external_search; got %s %s", r.Method, r.URL.Path)
+		if r.URL.Path != "/api/v1/search/external" || r.Method != "GET" {
+			t.Errorf("expected GET /api/v1/search/external; got %s %s", r.Method, r.URL.Path)
 		}
-		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		if body["q"] != "weir" {
-			t.Errorf("q = %v", body["q"])
+		if r.URL.Query().Get("q") != "weir" || r.URL.Query().Get("limit") != "5" {
+			t.Errorf("query = %s", r.URL.RawQuery)
 		}
-		_, _ = w.Write([]byte(`{"items":[{"source_id":"md5-x","source":"anna","title":"X"}]}`))
+		_, _ = w.Write([]byte(`{"results":[{"title":"X","authors":["Andy Weir"],"isbn13":"9780593135204","language":"en","published_date":"2021-05-04","cover_url":"http://c/x","source":"openlibrary"}],"total":1}`))
 	}))
 	defer srv.Close()
 	c := ebookdb.NewClient(srv.URL, "k")
-	hits, _ := c.ExternalSearch(context.Background(), "weir", 5)
-	if len(hits) != 1 || hits[0].SourceID != "md5-x" {
+	hits, err := c.ExternalSearch(context.Background(), "weir", 5)
+	if err != nil {
+		t.Fatalf("ExternalSearch: %v", err)
+	}
+	if len(hits) != 1 || hits[0].Title != "X" || hits[0].SourceID != "9780593135204" || hits[0].Year != 2021 {
 		t.Errorf("hits = %+v", hits)
 	}
 }
 
-func TestClient_StartDownload(t *testing.T) {
+// Requesting a download is POST /api/v1/monitoring/add with a search_result
+// (so the upstream's "isbn or search_result" requirement is always met) plus
+// preferred_format; the upstream returns {request_id,status}.
+func TestClient_AddMonitoring(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/downloads/start" || r.Method != "POST" {
+		if r.URL.Path != "/api/v1/monitoring/add" || r.Method != "POST" {
 			t.Errorf("path/method = %s %s", r.Method, r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"id":"job-1","status":"queued"}`))
+		var body struct {
+			SearchResult struct {
+				Title   string   `json:"title"`
+				Authors []string `json:"authors"`
+				ISBN13  string   `json:"isbn13"`
+			} `json:"search_result"`
+			PreferredFormat string `json:"preferred_format"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.SearchResult.Title != "Project Hail Mary" || body.PreferredFormat != "epub" {
+			t.Errorf("body = %+v", body)
+		}
+		w.WriteHeader(202)
+		_, _ = w.Write([]byte(`{"request_id":"req-9","status":"searching","message":"queued"}`))
 	}))
 	defer srv.Close()
 	c := ebookdb.NewClient(srv.URL, "k")
-	resp, _ := c.StartDownload(context.Background(), "md5-x", "epub")
-	if resp.ID != "job-1" {
+	resp, err := c.AddMonitoring(context.Background(), ebookdb.MonitoringRequest{
+		Title: "Project Hail Mary", Authors: []string{"Andy Weir"},
+		ISBN: "9780593135204", FormatPref: "epub",
+	})
+	if err != nil {
+		t.Fatalf("AddMonitoring: %v", err)
+	}
+	if resp.ID != "req-9" || resp.Status != "searching" {
 		t.Errorf("got %+v", resp)
 	}
 }
 
-func TestClient_GetDownload(t *testing.T) {
+// Polling is GET /api/v1/monitoring/{id}; the response uses "id" (not
+// request_id) and includes book_id when completed.
+func TestClient_GetMonitoring(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"id":"job-1","status":"imported","book_id":"md5-x"}`))
+		if r.URL.Path != "/api/v1/monitoring/req-9" {
+			t.Errorf("path = %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"id":"req-9","status":"completed","book_id":"bk-1","md5":"abc"}`))
 	}))
 	defer srv.Close()
 	c := ebookdb.NewClient(srv.URL, "k")
-	resp, _ := c.GetDownload(context.Background(), "job-1")
-	if resp.Status != "imported" || resp.BookID != "md5-x" {
+	resp, err := c.GetMonitoring(context.Background(), "req-9")
+	if err != nil {
+		t.Fatalf("GetMonitoring: %v", err)
+	}
+	if resp.ID != "req-9" || resp.Status != "completed" || resp.BookID != "bk-1" {
 		t.Errorf("got %+v", resp)
 	}
 }

@@ -21,9 +21,9 @@ func upstream(t *testing.T) *httptest.Server {
 			_, _ = w.Write([]byte(`{"items":[{"id":"md5-a","title":"A","formats":["epub"]}],"total":1}`))
 		case "/api/v1/books/md5-a":
 			_, _ = w.Write([]byte(`{"id":"md5-a","title":"A","formats":["epub"],"files":[{"format":"epub","file_size":1024}]}`))
-		case "/api/v1/external_search":
-			_, _ = w.Write([]byte(`{"items":[{"source_id":"md5-x","source":"anna","title":"X"}]}`))
-		case "/api/v1/downloads/job-1":
+		case "/api/v1/search/external":
+			_, _ = w.Write([]byte(`{"results":[{"title":"X","isbn13":"978","source":"openlibrary"}],"total":1}`))
+		case "/api/v1/monitoring/job-1":
 			_, _ = w.Write([]byte(`{"id":"job-1","status":"downloading"}`))
 		default:
 			w.WriteHeader(404)

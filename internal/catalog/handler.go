@@ -179,7 +179,7 @@ func (h *Handler) RequestSnapshot() http.HandlerFunc {
 			http.Error(w, "external_id required", http.StatusBadRequest)
 			return
 		}
-		snap, err := h.client.GetDownload(r.Context(), eid)
+		snap, err := h.client.GetMonitoring(r.Context(), eid)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
