@@ -1,65 +1,43 @@
-# Anna's Archive Downloader Plugin
+# Anna's Archive Downloader for Continuum
 
-`continuum.annas-archive-downloader` is a Continuum ebook download provider. It
-connects the Ebooks portal to an upstream Anna's Archive style downloader
-service and handles one-shot acquisition requests. It is intentionally not a
-presentation library source: it does not expose shelves, catalog pages, or owned
-library browsing.
+`continuum.annas-archive-downloader` is an ebook request/download provider for
+the Continuum Ebooks portal. It connects Continuum to an operator-managed
+Anna's Archive style downloader service, forwards approved ebook requests, and
+tracks those jobs until they are fulfilled or failed.
 
-## What It Does
+This plugin is not an ebook library backend. It does not expose shelves,
+catalog browsing, file streaming, OPDS, Kobo, or Kindle delivery. Install it
+beside `continuum.ebooks` when you want the Ebooks request flow to use a
+separate downloader service.
 
-- Receives ebook request events from `continuum.ebooks`.
-- Forwards each request to an upstream downloader API.
-- Tracks non-terminal download jobs with a scheduled reconciler.
-- Publishes request status events back to Continuum.
-- Exposes an authenticated backend HTTP API for search, request forwarding, and
-  status checks.
+Use this plugin only with content you are legally allowed to access. The plugin
+is a connector to your configured downloader; it does not provide or host
+content itself.
 
-## Capabilities
+## Features
 
-| Capability | ID | Purpose |
-|---|---|---|
-| `http_routes.v1` | `backend` | Authenticated `/api/v1/*` downloader API. |
-| `event_consumer.v1` | `request_handler` | Subscribes to `plugin.continuum.ebooks.request_submitted`. |
-| `ebook_backend.v1` | `default` | Advertises a download-provider role to the Ebooks portal. |
-| `scheduled_task.v1` | `reconciler` | Polls upstream download status every minute. |
-
-The `ebook_backend.v1` metadata advertises:
-
-- `ebook_roles`: `download_provider`
-- `supports_catalog`: `false`
-- `supports_requests`: `true`
-- `supports_auto_monitoring`: `false`
-
-## Event Flow
-
-1. A user submits an ebook request in the Ebooks portal.
-2. `continuum.ebooks` emits `plugin.continuum.ebooks.request_submitted`.
-3. This plugin ignores requests targeted at other providers.
-4. Matching requests are sent to the configured downloader service.
-5. The request is acknowledged, failed, or reconciled until fulfilled.
-
-Published event suffixes:
-
-- `request_acknowledged`
-- `request_status_changed`
-- `request_fulfilled`
-- `request_failed`
-
-The Continuum host prefixes these with the plugin ID, for example
-`plugin.continuum.annas-archive-downloader.request_fulfilled`.
+- Listens for `plugin.continuum.ebooks.request_submitted` events.
+- Ignores requests targeted at other download providers.
+- Searches the upstream downloader for external candidates.
+- Forwards selected requests to the downloader API with `X-API-Key`
+  authentication.
+- Stores forwarded request metadata and reconciles non-terminal jobs.
+- Publishes request acknowledgement, status, fulfillment, and failure events
+  back to Continuum.
+- Exposes authenticated `/api/v1/*` endpoints for search, request forwarding,
+  status checks, and diagnostics.
 
 ## Configuration
 
 | Key | Required | Description |
 |---|---|---|
-| `database_url` | yes | Postgres DSN for the dedicated downloader schema. |
-| `base_url` | yes | Base URL for the upstream downloader service. |
+| `database_url` | yes | Postgres DSN for the `annas_archive_downloader` schema. |
+| `base_url` | yes | Upstream downloader service base URL, no trailing slash. |
 | `api_key` | yes | API key sent to the upstream service as `X-API-Key`. |
-| `default_cover_size` | no | Cover size requested from upstream where supported. |
-| `external_source_priority` | no | JSON array of source/indexer names passed to external search. |
+| `default_cover_size` | no | Cover size requested from upstream when supported. |
+| `external_source_priority` | no | JSON array of preferred source/indexer names passed to upstream search. |
 
-Example `database_url`:
+Example DSN:
 
 ```text
 postgres://plugin_annas_archive_downloader:password@postgres:5432/continuum?search_path=annas_archive_downloader&sslmode=disable
@@ -67,27 +45,27 @@ postgres://plugin_annas_archive_downloader:password@postgres:5432/continuum?sear
 
 ## Database Setup
 
-Create a dedicated role and schema before installing the plugin:
-
 ```sql
 CREATE ROLE plugin_annas_archive_downloader WITH LOGIN PASSWORD '<chosen>';
 CREATE SCHEMA annas_archive_downloader AUTHORIZATION plugin_annas_archive_downloader;
 GRANT CONNECT ON DATABASE continuum TO plugin_annas_archive_downloader;
 ```
 
-The plugin runs its embedded migrations against the configured schema.
+## Event Flow
 
-## Upstream Requirements
+1. A user submits an ebook request in `continuum.ebooks`.
+2. The Ebooks portal emits `request_submitted` for the selected download
+   provider.
+3. This plugin searches or forwards the request to the configured downloader.
+4. The downloader job is acknowledged, polled, and eventually marked fulfilled
+   or failed.
 
-The upstream downloader service must provide compatible endpoints for:
+Outbound event suffixes:
 
-- external search
-- request submission
-- job status lookup
-- file/cover retrieval where supported
-
-The plugin assumes the upstream API is reachable from the Continuum plugin
-process and protected by the configured API key.
+- `request_acknowledged`
+- `request_status_changed`
+- `request_fulfilled`
+- `request_failed`
 
 ## Build And Test
 
@@ -95,18 +73,3 @@ process and protected by the configured API key.
 go test ./...
 go build -buildvcs=false -o continuum-plugin-annas-archive-downloader ./cmd/continuum-plugin-annas-archive-downloader
 ```
-
-Store tests require a reachable Postgres database matching the configured test
-DSN behavior.
-
-## Operational Notes
-
-- Use this provider for direct download workflows, not for library browsing.
-- Requests without an exact upstream source ID may need manual review upstream.
-- The reconciler is best-effort and should be safe to run repeatedly.
-- Keep API keys secret; they are plugin configuration secrets, not user-facing
-  values.
-
-## Repository Status
-
-This is a first-party Continuum plugin owned by the Continuum project.
