@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
@@ -20,7 +21,10 @@ func ToSummary(b ebookdb.Book) EbookSummary {
 	// base URL. Empty when there's no cover so the portal shows a placeholder
 	// instead of a broken image.
 	if b.HasCover {
-		s.CoverURL = "/cover/" + b.ID + "/medium"
+		// b.ID is the upstream-supplied md5 — escape it so an id with a
+		// stray '/'/'?'/'#' can't produce a path-confused cover URL (every
+		// other id→URL site in this codebase already PathEscapes).
+		s.CoverURL = "/cover/" + url.PathEscape(b.ID) + "/medium"
 	}
 	return s
 }

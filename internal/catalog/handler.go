@@ -3,20 +3,64 @@ package catalog
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
 )
 
+// maxCatalogLimit caps the page size forwarded upstream. limit is
+// attacker-controlled and was passed through verbatim — limit=999999999
+// drove a giant upstream fetch that then overran the 10 MiB read cap and
+// failed to JSON-decode, turning into endpoint denial.
+const maxCatalogLimit = 100
+
+// maxSearchBodyBytes bounds the /external_search request body (a search
+// query is never legitimately large).
+const maxSearchBodyBytes = 64 << 10
+
 type Handler struct {
 	client *ebookdb.Client
 }
 
 func NewHandler(c *ebookdb.Client) *Handler { return &Handler{client: c} }
+
+// parseListParams reads, validates and clamps the catalog query parameters.
+// sort/order are allowlisted (they are forwarded as upstream control
+// parameters) and limit is clamped; cursor is opaque and passed through.
+func parseListParams(r *http.Request) ebookdb.ListParams {
+	q := r.URL.Query()
+	p := ebookdb.ListParams{Cursor: q.Get("cursor")}
+	switch s := strings.ToLower(q.Get("sort")); s {
+	case "title", "year", "added", "rating", "relevance":
+		p.Sort = s
+	}
+	switch o := strings.ToLower(q.Get("order")); o {
+	case "asc", "desc":
+		p.Order = o
+	}
+	if n, err := strconv.Atoi(q.Get("limit")); err == nil && n > 0 {
+		if n > maxCatalogLimit {
+			n = maxCatalogLimit
+		}
+		p.Limit = n
+	}
+	return p
+}
+
+// upstreamError logs the real error (it can embed the internal upstream
+// base URL via the transport *url.Error) and returns a generic 502 to the
+// client.
+func upstreamError(w http.ResponseWriter, r *http.Request, err error) {
+	slog.Error("ebookdb upstream error",
+		"method", r.Method, "path", r.URL.Path, "err", err)
+	http.Error(w, "upstream unavailable", http.StatusBadGateway)
+}
 
 // Mount installs the ebook_backend.v1 contract routes on the chi router.
 // EbookDB doesn't support browse endpoints (no aggregated authors/series/etc.)
@@ -33,19 +77,9 @@ func (h *Handler) Mount(r chi.Router) {
 
 func (h *Handler) List() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		p := ebookdb.ListParams{
-			Cursor: r.URL.Query().Get("cursor"),
-			Sort:   r.URL.Query().Get("sort"),
-			Order:  r.URL.Query().Get("order"),
-		}
-		if l := r.URL.Query().Get("limit"); l != "" {
-			if n, err := strconv.Atoi(l); err == nil {
-				p.Limit = n
-			}
-		}
-		out, err := h.client.ListBooks(r.Context(), p)
+		out, err := h.client.ListBooks(r.Context(), parseListParams(r))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			upstreamError(w, r, err)
 			return
 		}
 		writeEnvelope(w, out)
@@ -54,20 +88,11 @@ func (h *Handler) List() http.HandlerFunc {
 
 func (h *Handler) Search() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		p := ebookdb.ListParams{
-			Query:  r.URL.Query().Get("q"),
-			Cursor: r.URL.Query().Get("cursor"),
-			Sort:   r.URL.Query().Get("sort"),
-			Order:  r.URL.Query().Get("order"),
-		}
-		if l := r.URL.Query().Get("limit"); l != "" {
-			if n, err := strconv.Atoi(l); err == nil {
-				p.Limit = n
-			}
-		}
+		p := parseListParams(r)
+		p.Query = r.URL.Query().Get("q")
 		out, err := h.client.ListBooks(r.Context(), p)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			upstreamError(w, r, err)
 			return
 		}
 		writeEnvelope(w, out)
@@ -83,7 +108,7 @@ func (h *Handler) Detail() http.HandlerFunc {
 		}
 		d, err := h.client.GetBook(r.Context(), id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			upstreamError(w, r, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -125,7 +150,7 @@ func (h *Handler) Cover() http.HandlerFunc {
 		path := "/api/v1/books/" + url.PathEscape(md5) + "/cover/" + url.PathEscape(size)
 		resp, err := h.client.GetStream(r.Context(), path)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			upstreamError(w, r, err)
 			return
 		}
 		proxyStream(w, resp, []string{"Content-Type", "Content-Length", "ETag", "Cache-Control", "Last-Modified"})
@@ -144,7 +169,7 @@ func (h *Handler) File() http.HandlerFunc {
 		// silently re-downloading the whole file.
 		resp, err := h.client.GetStreamWithRange(r.Context(), path, r.Header.Get("Range"))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			upstreamError(w, r, err)
 			return
 		}
 		proxyStream(w, resp, []string{"Content-Type", "Content-Length", "Content-Disposition", "Content-Range", "ETag", "Cache-Control", "Last-Modified", "Accept-Ranges"})
@@ -157,14 +182,19 @@ func (h *Handler) ExternalSearch() http.HandlerFunc {
 			Q     string `json:"q"`
 			Limit int    `json:"limit"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(io.LimitReader(r.Body, maxSearchBodyBytes)).Decode(&body)
 		if body.Q == "" {
 			http.Error(w, "q required", http.StatusBadRequest)
 			return
 		}
+		if body.Limit < 0 {
+			body.Limit = 0 // upstream default
+		} else if body.Limit > maxCatalogLimit {
+			body.Limit = maxCatalogLimit
+		}
 		hits, err := h.client.ExternalSearch(r.Context(), body.Q, body.Limit)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			upstreamError(w, r, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -181,7 +211,7 @@ func (h *Handler) RequestSnapshot() http.HandlerFunc {
 		}
 		snap, err := h.client.GetMonitoring(r.Context(), eid)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			upstreamError(w, r, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
