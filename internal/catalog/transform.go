@@ -7,13 +7,22 @@ import (
 )
 
 func ToSummary(b ebookdb.Book) EbookSummary {
-	return EbookSummary{
+	s := EbookSummary{
 		ID: b.ID, Title: b.Title,
 		Authors: b.Authors, Series: b.Series, SeriesIndex: b.SeriesIndex,
 		Year: b.Year, Language: b.Language,
-		CoverURL: b.CoverURL, HasCover: b.HasCover,
-		Rating: b.Rating, Formats: b.Formats,
+		HasCover: b.HasCover,
+		Rating:   b.Rating, Formats: b.Formats,
 	}
+	// Point covers at this plugin's stream-proxy route, not the raw upstream
+	// URL: the upstream cover endpoint requires X-API-Key (the browser can't
+	// send it) and passing the upstream URL through also leaks the internal
+	// base URL. Empty when there's no cover so the portal shows a placeholder
+	// instead of a broken image.
+	if b.HasCover {
+		s.CoverURL = "/cover/" + b.ID + "/medium"
+	}
+	return s
 }
 
 func ToDetail(d ebookdb.BookDetail) EbookDetail {
