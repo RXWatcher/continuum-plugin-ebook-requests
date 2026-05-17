@@ -79,3 +79,68 @@ func TestReconciler_Failed(t *testing.T) {
 		t.Errorf("got pubs = %v", pub.pubs)
 	}
 }
+
+// An unknown/unmapped upstream status must NOT regress the request to
+// "acknowledged" and must NOT emit a status-changed event. Hold the current
+// status and just record that we polled.
+func TestReconciler_UnknownStatus_HoldsNoEvent(t *testing.T) {
+	r, pub, st := newReconcilerForTest(t, `{"id":"job-1","status":"paused"}`)
+	_ = st.UpsertForwardedRequest(context.Background(), store.ForwardedRequest{
+		RequestID: "req-1", ExternalID: "job-1", Status: "downloading",
+		LastPolled: time.Now().Add(-time.Hour), UpdatedAt: time.Now(),
+	})
+	if err := r.Tick(context.Background()); err != nil {
+		t.Fatalf("tick: %v", err)
+	}
+	if len(pub.pubs) != 0 {
+		t.Errorf("unknown status must not emit an event; got %v", pub.pubs)
+	}
+	row, _ := st.GetForwardedRequest(context.Background(), "req-1")
+	if row.Status != "downloading" {
+		t.Errorf("status regressed to %q; want held at downloading", row.Status)
+	}
+	if !row.LastPolled.After(time.Now().Add(-time.Minute)) {
+		t.Errorf("last_polled not advanced: %v", row.LastPolled)
+	}
+}
+
+// A transient upstream failure sets error_text. Once polling succeeds again
+// it must be cleared, otherwise it sticks forever and RequestStats.WithErrors
+// over-counts permanently.
+func TestReconciler_SuccessfulPoll_ClearsStickyError(t *testing.T) {
+	r, _, st := newReconcilerForTest(t, `{"id":"job-1","status":"downloading"}`)
+	_ = st.UpsertForwardedRequest(context.Background(), store.ForwardedRequest{
+		RequestID: "req-1", ExternalID: "job-1", Status: "downloading",
+		ErrorText: "boom: upstream 503", LastPolled: time.Now().Add(-time.Hour),
+		UpdatedAt: time.Now(),
+	})
+	if err := r.Tick(context.Background()); err != nil {
+		t.Fatalf("tick: %v", err)
+	}
+	row, _ := st.GetForwardedRequest(context.Background(), "req-1")
+	if row.ErrorText != "" {
+		t.Errorf("error_text should be cleared after a successful poll; got %q", row.ErrorText)
+	}
+	stats, _ := st.RequestStats(context.Background())
+	if stats.WithErrors != 0 {
+		t.Errorf("WithErrors should be 0 after recovery; got %d", stats.WithErrors)
+	}
+}
+
+// A cancelled context must short-circuit: no events, no DB writes.
+func TestReconciler_CancelledContext_NoProcessing(t *testing.T) {
+	r, pub, st := newReconcilerForTest(t, `{"id":"job-1","status":"imported"}`)
+	_ = st.UpsertForwardedRequest(context.Background(), store.ForwardedRequest{
+		RequestID: "req-1", ExternalID: "job-1", Status: "downloading", UpdatedAt: time.Now(),
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_ = r.Tick(ctx)
+	if len(pub.pubs) != 0 {
+		t.Errorf("cancelled context must not publish; got %v", pub.pubs)
+	}
+	row, _ := st.GetForwardedRequest(context.Background(), "req-1")
+	if row.Status != "downloading" {
+		t.Errorf("cancelled context must not write; status = %q", row.Status)
+	}
+}
