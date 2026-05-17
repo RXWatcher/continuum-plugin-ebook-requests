@@ -50,6 +50,34 @@ func TestList_Returns200(t *testing.T) {
 	}
 }
 
+// Search forwarded only ?q=, dropping cursor/limit/sort/order, so it always
+// returned upstream page 1 and infinite scroll never advanced.
+func TestSearch_PassesPaginationParams(t *testing.T) {
+	var gotQuery string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/books/search" {
+			gotQuery = r.URL.RawQuery
+			_, _ = w.Write([]byte(`{"items":[{"id":"md5-b","title":"B"}],"total":1}`))
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer up.Close()
+	c := ebookdb.NewClient(up.URL, "k")
+	r := newRouter(c)
+	req := httptest.NewRequest("GET", "/catalog/search?q=hail&cursor=c2&limit=5&sort=title&order=desc", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("code = %d body=%s", w.Code, w.Body.String())
+	}
+	for _, want := range []string{"q=hail", "cursor=c2", "limit=5", "sort=title", "order=desc"} {
+		if !strings.Contains(gotQuery, want) {
+			t.Errorf("upstream query %q missing %q", gotQuery, want)
+		}
+	}
+}
+
 func TestDetail_IncludesFiles(t *testing.T) {
 	up := upstream(t)
 	defer up.Close()

@@ -54,8 +54,18 @@ func (h *Handler) List() http.HandlerFunc {
 
 func (h *Handler) Search() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query().Get("q")
-		out, err := h.client.ListBooks(r.Context(), ebookdb.ListParams{Query: q})
+		p := ebookdb.ListParams{
+			Query:  r.URL.Query().Get("q"),
+			Cursor: r.URL.Query().Get("cursor"),
+			Sort:   r.URL.Query().Get("sort"),
+			Order:  r.URL.Query().Get("order"),
+		}
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if n, err := strconv.Atoi(l); err == nil {
+				p.Limit = n
+			}
+		}
+		out, err := h.client.ListBooks(r.Context(), p)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
