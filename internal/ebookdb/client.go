@@ -66,6 +66,39 @@ func (c *Client) Get(ctx context.Context, path string) ([]byte, error) {
 	return body, nil
 }
 
+// GetStream issues a GET with the API key and returns the response so the
+// caller can copy the body without buffering it. Used for cover images and
+// ebook files (the upstream requires X-API-Key, so the browser can't follow
+// a redirect there — it must be stream-proxied). Caller MUST close resp.Body.
+func (c *Client) GetStream(ctx context.Context, path string) (*http.Response, error) {
+	return c.GetStreamWithRange(ctx, path, "")
+}
+
+// GetStreamWithRange is GetStream that also forwards the caller's Range
+// request header so byte-range (seek/resume) requests reach upstream and the
+// 206 Partial Content response passes back through. A 416 is returned to the
+// caller as a normal response (not an error) so it can be relayed verbatim.
+// Caller MUST close resp.Body.
+func (c *Client) GetStreamWithRange(ctx context.Context, path, rangeHeader string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+	if rangeHeader != "" {
+		req.Header.Set("Range", rangeHeader)
+	}
+	resp, err := c.hc.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("do: %w", err)
+	}
+	if resp.StatusCode >= 400 && resp.StatusCode != http.StatusRequestedRangeNotSatisfiable {
+		resp.Body.Close()
+		return nil, fmt.Errorf("upstream %d", resp.StatusCode)
+	}
+	return resp, nil
+}
+
 func (c *Client) PostJSON(ctx context.Context, path string, body []byte) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+path, strings.NewReader(string(body)))
 	if err != nil {

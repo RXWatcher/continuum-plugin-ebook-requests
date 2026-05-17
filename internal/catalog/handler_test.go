@@ -65,25 +65,88 @@ func TestDetail_IncludesFiles(t *testing.T) {
 	}
 }
 
-func TestCover_Redirects302(t *testing.T) {
-	c := ebookdb.NewClient("https://up.example", "k")
+// Upstream EbookDB requires X-API-Key. A 302 to the upstream URL would be
+// followed by a browser/streamer that can't send that header -> 401, so
+// covers must be stream-proxied with the key, not redirected.
+func TestCover_StreamProxiesWithAPIKey(t *testing.T) {
+	var gotKey string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/books/md5-7/cover/large" {
+			t.Errorf("upstream path = %s", r.URL.Path)
+		}
+		gotKey = r.Header.Get("X-API-Key")
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write([]byte("cover"))
+	}))
+	defer up.Close()
+	c := ebookdb.NewClient(up.URL, "k")
 	r := newRouter(c)
 	req := httptest.NewRequest("GET", "/cover/md5-7/large", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusFound {
-		t.Fatalf("code = %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("code = %d body=%s", w.Code, w.Body.String())
+	}
+	if gotKey != "k" {
+		t.Errorf("upstream X-API-Key = %q, want k", gotKey)
+	}
+	if w.Body.String() != "cover" || w.Header().Get("Content-Type") != "image/jpeg" {
+		t.Errorf("body=%q ct=%q", w.Body.String(), w.Header().Get("Content-Type"))
 	}
 }
 
-func TestFile_Redirects302(t *testing.T) {
-	c := ebookdb.NewClient("https://up.example", "k")
+// md5 flows from the URL into the upstream request path; a value with
+// path/query metacharacters must be percent-escaped (SSRF / path traversal).
+func TestCover_EscapesMD5(t *testing.T) {
+	var gotPath, gotQuery string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotQuery = r.URL.Path, r.URL.RawQuery
+		_, _ = w.Write([]byte("x"))
+	}))
+	defer up.Close()
+	c := ebookdb.NewClient(up.URL, "k")
 	r := newRouter(c)
-	req := httptest.NewRequest("GET", "/file/md5-7?format=epub", nil)
+	req := httptest.NewRequest("GET", "/cover/a%3Fz/large", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusFound {
-		t.Fatalf("code = %d", w.Code)
+	if gotPath != "/api/v1/books/a?z/cover/large" || gotQuery != "" {
+		t.Errorf("upstream path=%q query=%q (md5 not escaped)", gotPath, gotQuery)
+	}
+}
+
+// File must stream-proxy with the API key and forward the client Range so
+// reader/Kindle seek/resume gets a 206 instead of silently re-downloading.
+func TestFile_StreamProxiesAndForwardsRange(t *testing.T) {
+	var gotKey, gotRange string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/books/md5-7/files/epub" {
+			t.Errorf("upstream path = %s", r.URL.Path)
+		}
+		gotKey = r.Header.Get("X-API-Key")
+		gotRange = r.Header.Get("Range")
+		w.Header().Set("Content-Type", "application/epub+zip")
+		w.Header().Set("Content-Range", "bytes 0-3/100")
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write([]byte("PK04"))
+	}))
+	defer up.Close()
+	c := ebookdb.NewClient(up.URL, "k")
+	r := newRouter(c)
+	req := httptest.NewRequest("GET", "/file/md5-7?format=epub", nil)
+	req.Header.Set("Range", "bytes=0-3")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if gotKey != "k" {
+		t.Errorf("upstream X-API-Key = %q, want k", gotKey)
+	}
+	if gotRange != "bytes=0-3" {
+		t.Errorf("upstream Range = %q, want bytes=0-3", gotRange)
+	}
+	if w.Code != http.StatusPartialContent {
+		t.Errorf("code = %d, want 206", w.Code)
+	}
+	if w.Header().Get("Content-Range") != "bytes 0-3/100" || w.Body.String() != "PK04" {
+		t.Errorf("Content-Range=%q body=%q", w.Header().Get("Content-Range"), w.Body.String())
 	}
 }
 

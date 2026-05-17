@@ -2,7 +2,9 @@ package catalog
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -92,11 +94,31 @@ func writeEnvelope(w http.ResponseWriter, p ebookdb.Paged[ebookdb.Book]) {
 	_ = json.NewEncoder(w).Encode(out)
 }
 
+// proxyStream copies an upstream streamed response (status, selected headers,
+// body) to the client. The upstream requires X-API-Key, so a 302 would be
+// followed without the header and 401 — we must stream-proxy.
+func proxyStream(w http.ResponseWriter, resp *http.Response, headers []string) {
+	defer resp.Body.Close()
+	for _, k := range headers {
+		if v := resp.Header.Get(k); v != "" {
+			w.Header().Set(k, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	_, _ = io.Copy(w, resp.Body)
+}
+
 func (h *Handler) Cover() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		md5 := chi.URLParam(r, "book_id")
 		size := chi.URLParam(r, "size")
-		http.Redirect(w, r, h.client.CoverURL(md5, size), http.StatusFound)
+		path := "/api/v1/books/" + url.PathEscape(md5) + "/cover/" + url.PathEscape(size)
+		resp, err := h.client.GetStream(r.Context(), path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		proxyStream(w, resp, []string{"Content-Type", "Content-Length", "ETag", "Cache-Control", "Last-Modified"})
 	}
 }
 
@@ -107,7 +129,15 @@ func (h *Handler) File() http.HandlerFunc {
 		if format == "" {
 			format = "epub"
 		}
-		http.Redirect(w, r, h.client.FileURL(md5, format), http.StatusFound)
+		path := "/api/v1/books/" + url.PathEscape(md5) + "/files/" + url.PathEscape(format)
+		// Forward Range so reader/Kindle seek/resume gets a 206 instead of
+		// silently re-downloading the whole file.
+		resp, err := h.client.GetStreamWithRange(r.Context(), path, r.Header.Get("Range"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		proxyStream(w, resp, []string{"Content-Type", "Content-Length", "Content-Disposition", "Content-Range", "ETag", "Cache-Control", "Last-Modified", "Accept-Ranges"})
 	}
 }
 
