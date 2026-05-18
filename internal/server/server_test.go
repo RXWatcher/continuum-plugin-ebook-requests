@@ -44,6 +44,30 @@ func TestAdminPageIncludesFailureTriageGuidance(t *testing.T) {
 	}
 }
 
+func TestAdminPageIncludesOperatorConsoleSections(t *testing.T) {
+	h := server.New(server.Deps{})
+	r := httptest.NewRequest("GET", "/admin?theme=midnight-cinema", nil)
+	w := httptest.NewRecorder()
+	h.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("code = %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		`data-tab-target="readiness"`,
+		`data-tab-target="search-lab"`,
+		`data-tab-target="request-queue"`,
+		`data-tab-target="guardrails"`,
+		`id="queue-output"`,
+		`Mirror health`,
+		`Policy guardrails`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("admin page missing %q", want)
+		}
+	}
+}
+
 func TestCapabilities9FormatsAndNoAutoMonitoring(t *testing.T) {
 	h := server.New(server.Deps{})
 	r := httptest.NewRequest("GET", "/api/v1/capabilities", nil)
