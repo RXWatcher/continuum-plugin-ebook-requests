@@ -42,6 +42,7 @@ func main() {
 	}
 
 	httpSrv := httproutes.NewServer()
+	httpSrv.SetHandler(server.New(server.Deps{}).Handler())
 
 	var (
 		poolPtr       atomic.Pointer[pgxpool.Pool]

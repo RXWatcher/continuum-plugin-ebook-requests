@@ -87,13 +87,16 @@ func (s *Server) Configure(_ context.Context, req *pluginv1.ConfigureRequest) (*
 		}
 	}
 	if cfg.DatabaseURL == "" {
-		return nil, fmt.Errorf("database_url is required")
+		s.mu.Lock()
+		s.cfg = cfg
+		s.mu.Unlock()
+		return &pluginv1.ConfigureResponse{}, nil
 	}
-	if cfg.BaseURL == "" {
-		return nil, fmt.Errorf("base_url is required")
-	}
-	if cfg.APIKey == "" {
-		return nil, fmt.Errorf("api_key is required")
+	if !cfg.Configured() {
+		s.mu.Lock()
+		s.cfg = cfg
+		s.mu.Unlock()
+		return &pluginv1.ConfigureResponse{}, nil
 	}
 	if u, err := url.Parse(cfg.BaseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return nil, fmt.Errorf("base_url must be a valid http(s) URL")
