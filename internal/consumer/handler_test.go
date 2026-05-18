@@ -124,6 +124,59 @@ func TestConsumer_SkipsTargetMismatch(t *testing.T) {
 	}
 }
 
+func TestConsumer_SkipsMalformedOrConflictingTargets(t *testing.T) {
+	for _, payload := range []map[string]any{
+		{"request_id": "r-blank", "target_plugin_id": " ", "title": "X"},
+		{"request_id": "r-numeric", "target_plugin_id": float64(1), "title": "X"},
+		{
+			"request_id":                "r-conflict",
+			"target_plugin_id":          "continuum.other-ebook-provider",
+			"target_provider_plugin_id": "continuum.annas-archive-downloader",
+			"title":                     "X",
+		},
+	} {
+		up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("upstream should not be called for payload %+v", payload)
+		}))
+		h, pub, _ := newConsumerForTest(t, up)
+		_, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
+			EventName: "plugin.continuum.ebooks.request_submitted",
+			Payload:   mustStruct(t, payload),
+		})
+		up.Close()
+		if err != nil {
+			t.Fatalf("HandleEvent: %v", err)
+		}
+		if len(pub.pubs) != 0 {
+			t.Fatalf("publisher should not be called for %+v; got %+v", payload, pub.pubs)
+		}
+	}
+}
+
+func TestConsumer_NilPublisherDoesNotPanic(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"job-1","status":"queued"}`))
+	}))
+	defer up.Close()
+	st := newTestStore(t)
+	deps := &consumer.Deps{
+		Store: st, Pub: nil, EBK: ebookdb.NewClient(up.URL, "k"),
+		PluginID: "continuum.annas-archive-downloader",
+	}
+	h := consumer.New(func() *consumer.Deps { return deps }, nil)
+	_, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
+		EventName: "plugin.continuum.ebooks.request_submitted",
+		Payload: mustStruct(t, map[string]any{
+			"request_id":       "r-nil-pub",
+			"target_plugin_id": "continuum.annas-archive-downloader",
+			"title":            "X",
+		}),
+	})
+	if err != nil {
+		t.Fatalf("HandleEvent: %v", err)
+	}
+}
+
 // Capability servers serve before Configure runs. If depsFn returns nil the
 // handler must nack (return an error) so the host redelivers once configured,
 // instead of acking the event and dropping the request permanently.
@@ -142,6 +195,21 @@ func TestConsumer_NotConfigured_Nacks(t *testing.T) {
 	}
 	if resp != nil {
 		t.Errorf("response must be nil on nack; got %+v", resp)
+	}
+}
+
+func TestConsumer_NilDepsFn_Nacks(t *testing.T) {
+	h := consumer.New(nil, nil)
+	_, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
+		EventName: "plugin.continuum.ebooks.request_submitted",
+		Payload: mustStruct(t, map[string]any{
+			"request_id":       "r-cfg",
+			"target_plugin_id": "continuum.annas-archive-downloader",
+			"title":            "X",
+		}),
+	})
+	if err == nil {
+		t.Fatal("nil depsFn must nack so the host redelivers")
 	}
 }
 
