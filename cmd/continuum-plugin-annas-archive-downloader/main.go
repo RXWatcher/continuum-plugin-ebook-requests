@@ -75,7 +75,18 @@ func main() {
 			return fmt.Errorf("migrate: %w", err)
 		}
 		st := store.New(p)
-		ebkClient := ebookdb.NewClient(cfg.BaseURL, cfg.APIKey)
+		appCfg, err := st.ImportLegacyAppConfig(ctx, cfg)
+		if err != nil {
+			p.Close()
+			return fmt.Errorf("import app config: %w", err)
+		}
+		appCfg.DatabaseURL = cfg.DatabaseURL
+		cfg = appCfg
+
+		var ebkClient *ebookdb.Client
+		if cfg.ProviderConfigured() {
+			ebkClient = ebookdb.NewClient(cfg.BaseURL, cfg.APIKey)
+		}
 
 		srv := server.New(server.Deps{
 			EbookDBClient: ebkClient,
@@ -85,14 +96,19 @@ func main() {
 		httpSrv.SetHandler(srv.Handler())
 
 		ev := event.New(sdkruntime.Host(), logger.Named("event"))
-		consumerDepsP.Store(&consumer.Deps{
-			Store: st, Pub: ev, EBK: ebkClient,
-			PluginID: "continuum.annas-archive-downloader",
-		})
-		reconcilerPtr.Store(reconciler.New(reconciler.Deps{
-			Store: st, Pub: ev, EBK: ebkClient,
-			PluginID: "continuum.annas-archive-downloader",
-		}))
+		if ebkClient != nil {
+			consumerDepsP.Store(&consumer.Deps{
+				Store: st, Pub: ev, EBK: ebkClient,
+				PluginID: "continuum.annas-archive-downloader",
+			})
+			reconcilerPtr.Store(reconciler.New(reconciler.Deps{
+				Store: st, Pub: ev, EBK: ebkClient,
+				PluginID: "continuum.annas-archive-downloader",
+			}))
+		} else {
+			consumerDepsP.Store(nil)
+			reconcilerPtr.Store(nil)
+		}
 
 		if old := poolPtr.Swap(p); old != nil {
 			old.Close()

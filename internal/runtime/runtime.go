@@ -14,15 +14,19 @@ import (
 
 // Config is the parsed plugin global config (per spec Layer 9.3).
 type Config struct {
-	DatabaseURL            string
-	BaseURL                string
-	APIKey                 string
-	DefaultCoverSize       string
-	ExternalSourcePriority []string
+	DatabaseURL            string   `json:"database_url,omitempty"`
+	BaseURL                string   `json:"base_url"`
+	APIKey                 string   `json:"api_key,omitempty"`
+	DefaultCoverSize       string   `json:"default_cover_size"`
+	ExternalSourcePriority []string `json:"external_source_priority"`
 }
 
 func (c Config) Configured() bool {
-	return c.BaseURL != "" && c.APIKey != "" && c.DatabaseURL != ""
+	return c.DatabaseURL != ""
+}
+
+func (c Config) ProviderConfigured() bool {
+	return c.BaseURL != "" && c.APIKey != ""
 }
 
 func mask(s string) string {
@@ -92,14 +96,10 @@ func (s *Server) Configure(_ context.Context, req *pluginv1.ConfigureRequest) (*
 		s.mu.Unlock()
 		return &pluginv1.ConfigureResponse{}, nil
 	}
-	if !cfg.Configured() {
-		s.mu.Lock()
-		s.cfg = cfg
-		s.mu.Unlock()
-		return &pluginv1.ConfigureResponse{}, nil
-	}
-	if u, err := url.Parse(cfg.BaseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return nil, fmt.Errorf("base_url must be a valid http(s) URL")
+	if cfg.BaseURL != "" {
+		if err := ValidateBaseURL(cfg.BaseURL); err != nil {
+			return nil, fmt.Errorf("base_url: %w", err)
+		}
 	}
 	if s.onCfg != nil {
 		if err := s.onCfg(cfg); err != nil {
@@ -120,6 +120,14 @@ func (s *Server) Snapshot() Config {
 	// while a concurrent Configure rewrites s.cfg.
 	c.ExternalSourcePriority = append([]string(nil), s.cfg.ExternalSourcePriority...)
 	return c
+}
+
+func ValidateBaseURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("must be a valid http(s) URL")
+	}
+	return nil
 }
 
 func stringFromValue(v any) string {
