@@ -5,14 +5,59 @@ package ebookdb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const defaultTimeout = 30 * time.Second
+
+// RateLimitError signals an upstream 429 with optional Retry-After. The
+// reconciler uses it to back off across the next few ticks instead of
+// hammering an upstream that already said "slow down".
+type RateLimitError struct {
+	RetryAfter time.Duration
+	Body       string
+}
+
+func (e *RateLimitError) Error() string {
+	if e.RetryAfter > 0 {
+		return fmt.Sprintf("upstream 429 (retry after %s): %s", e.RetryAfter, e.Body)
+	}
+	return fmt.Sprintf("upstream 429: %s", e.Body)
+}
+
+// IsRateLimited reports whether err is a *RateLimitError anywhere in the
+// error chain.
+func IsRateLimited(err error) (*RateLimitError, bool) {
+	var rl *RateLimitError
+	if errors.As(err, &rl) {
+		return rl, true
+	}
+	return nil, false
+}
+
+func parseRetryAfter(h string) time.Duration {
+	h = strings.TrimSpace(h)
+	if h == "" {
+		return 0
+	}
+	if n, err := strconv.Atoi(h); err == nil && n >= 0 {
+		return time.Duration(n) * time.Second
+	}
+	if t, err := http.ParseTime(h); err == nil {
+		d := time.Until(t)
+		if d < 0 {
+			return 0
+		}
+		return d
+	}
+	return 0
+}
 
 // maxResponseBytes caps the body read from the upstream EbookDB service.
 // Search/detail responses are well under this; the cap defends against
@@ -89,6 +134,12 @@ func (c *Client) Get(ctx context.Context, path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read body: %w", err)
 	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, &RateLimitError{
+			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After")),
+			Body:       truncForError(body),
+		}
+	}
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("upstream %d: %s", resp.StatusCode, truncForError(body))
 	}
@@ -144,6 +195,12 @@ func (c *Client) PostJSON(ctx context.Context, path string, body []byte) ([]byte
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("read body: %w", err)
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, &RateLimitError{
+			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After")),
+			Body:       truncForError(respBody),
+		}
 	}
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("upstream %d: %s", resp.StatusCode, truncForError(respBody))

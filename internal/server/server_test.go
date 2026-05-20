@@ -58,7 +58,9 @@ func TestAdminPageIncludesOperatorConsoleSections(t *testing.T) {
 		`data-tab-target="search-lab"`,
 		`data-tab-target="request-queue"`,
 		`data-tab-target="guardrails"`,
-		`id="queue-output"`,
+		`id="queue-table"`,
+		`id="reconciler-status"`,
+		`id="reconcile-now"`,
 		`Mirror health`,
 		`Policy guardrails`,
 	} {

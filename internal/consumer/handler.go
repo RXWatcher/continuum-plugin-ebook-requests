@@ -107,9 +107,15 @@ func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequ
 		return &pluginv1.HandleEventResponse{}, nil
 	}
 
-	resp, err := d.EBK.AddMonitoring(ctx, ebookdb.MonitoringRequest{
+	// Bound the upstream call so a slow/hung downloader can't pin the event
+	// consumer goroutine. The plugin host's own event deadline is generous;
+	// 10s here matches the reconciler per-row budget and keeps user-facing
+	// "submitted but no acknowledged" gaps short.
+	addCtx, addCancel := context.WithTimeout(ctx, 10*time.Second)
+	resp, err := d.EBK.AddMonitoring(addCtx, ebookdb.MonitoringRequest{
 		Title: title, Authors: authors, ISBN: isbn, FormatPref: formatPref,
 	})
+	addCancel()
 	if err != nil {
 		if uerr := d.Store.UpsertForwardedRequest(ctx, store.ForwardedRequest{
 			RequestID: requestID, Status: "failed", ErrorText: err.Error(), UpdatedAt: time.Now(),

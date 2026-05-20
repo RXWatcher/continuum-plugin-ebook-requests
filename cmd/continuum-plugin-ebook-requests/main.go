@@ -88,27 +88,30 @@ func main() {
 			ebkClient = ebookdb.NewClient(cfg.BaseURL, cfg.APIKey)
 		}
 
-		srv := server.New(server.Deps{
-			EbookDBClient: ebkClient,
-			Store:         st,
-			Config:        cfg,
-		})
-		httpSrv.SetHandler(srv.Handler())
-
 		ev := event.New(sdkruntime.Host(), logger.Named("event"))
+		var rc *reconciler.Reconciler
 		if ebkClient != nil {
 			consumerDepsP.Store(&consumer.Deps{
 				Store: st, Pub: ev, EBK: ebkClient,
 				PluginID: "continuum.ebook-requests",
 			})
-			reconcilerPtr.Store(reconciler.New(reconciler.Deps{
+			rc = reconciler.New(reconciler.Deps{
 				Store: st, Pub: ev, EBK: ebkClient,
 				PluginID: "continuum.ebook-requests",
-			}))
+			})
+			reconcilerPtr.Store(rc)
 		} else {
 			consumerDepsP.Store(nil)
 			reconcilerPtr.Store(nil)
 		}
+
+		srv := server.New(server.Deps{
+			EbookDBClient: ebkClient,
+			Store:         st,
+			Reconciler:    rc,
+			Config:        cfg,
+		})
+		httpSrv.SetHandler(srv.Handler())
 
 		if old := poolPtr.Swap(p); old != nil {
 			old.Close()
