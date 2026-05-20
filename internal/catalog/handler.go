@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
 )
 
 // maxCatalogLimit caps the page size forwarded upstream. limit is

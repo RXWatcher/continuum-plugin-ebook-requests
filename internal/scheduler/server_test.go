@@ -7,7 +7,7 @@ import (
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/reconciler"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/reconciler"
 )
 
 func TestTaskID(t *testing.T) {

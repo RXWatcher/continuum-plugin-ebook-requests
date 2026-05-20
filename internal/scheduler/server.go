@@ -8,7 +8,7 @@ import (
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/reconciler"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/reconciler"
 )
 
 // taskID extracts the capability id from a scheduled-task key. The Continuum

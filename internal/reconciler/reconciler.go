@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
 )
 
 // tickTimeout caps a full Tick invocation. The scheduler fires this task on

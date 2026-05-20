@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/catalog"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/catalog"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
 )
 
 func mount(c *ebookdb.Client) http.Handler {

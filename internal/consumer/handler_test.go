@@ -11,9 +11,9 @@ import (
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/consumer"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
 )
 
 type fakePub struct {
@@ -49,7 +49,7 @@ func newConsumerForTest(t *testing.T, upstream *httptest.Server) (*consumer.Hand
 	ebk := ebookdb.NewClient(upstream.URL, "k")
 	deps := &consumer.Deps{
 		Store: st, Pub: pub, EBK: ebk,
-		PluginID: "continuum.annas-archive-downloader",
+		PluginID: "continuum.ebook-requests",
 	}
 	h := consumer.New(func() *consumer.Deps { return deps }, nil)
 	return h, pub, st
@@ -65,7 +65,7 @@ func TestConsumer_HappyPath_EmitsAcknowledged(t *testing.T) {
 		EventName: "plugin.continuum.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-1",
-			"target_plugin_id": "continuum.annas-archive-downloader",
+			"target_plugin_id": "continuum.ebook-requests",
 			"title":            "X",
 			"source_id":        "md5-x",
 			"format_pref":      "epub",
@@ -92,7 +92,7 @@ func TestConsumer_MissingMetadata_EmitsFailed(t *testing.T) {
 		EventName: "plugin.continuum.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-2",
-			"target_plugin_id": "continuum.annas-archive-downloader",
+			"target_plugin_id": "continuum.ebook-requests",
 			// no title, no isbn
 		}),
 	})
@@ -131,7 +131,7 @@ func TestConsumer_SkipsMalformedOrConflictingTargets(t *testing.T) {
 		{
 			"request_id":                "r-conflict",
 			"target_plugin_id":          "continuum.other-ebook-provider",
-			"target_provider_plugin_id": "continuum.annas-archive-downloader",
+			"target_provider_plugin_id": "continuum.ebook-requests",
 			"title":                     "X",
 		},
 	} {
@@ -161,14 +161,14 @@ func TestConsumer_NilPublisherDoesNotPanic(t *testing.T) {
 	st := newTestStore(t)
 	deps := &consumer.Deps{
 		Store: st, Pub: nil, EBK: ebookdb.NewClient(up.URL, "k"),
-		PluginID: "continuum.annas-archive-downloader",
+		PluginID: "continuum.ebook-requests",
 	}
 	h := consumer.New(func() *consumer.Deps { return deps }, nil)
 	_, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
 		EventName: "plugin.continuum.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-nil-pub",
-			"target_plugin_id": "continuum.annas-archive-downloader",
+			"target_plugin_id": "continuum.ebook-requests",
 			"title":            "X",
 		}),
 	})
@@ -186,7 +186,7 @@ func TestConsumer_NotConfigured_Nacks(t *testing.T) {
 		EventName: "plugin.continuum.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-cfg",
-			"target_plugin_id": "continuum.annas-archive-downloader",
+			"target_plugin_id": "continuum.ebook-requests",
 			"source_id":        "md5-x",
 		}),
 	})
@@ -204,7 +204,7 @@ func TestConsumer_NilDepsFn_Nacks(t *testing.T) {
 		EventName: "plugin.continuum.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-cfg",
-			"target_plugin_id": "continuum.annas-archive-downloader",
+			"target_plugin_id": "continuum.ebook-requests",
 			"title":            "X",
 		}),
 	})

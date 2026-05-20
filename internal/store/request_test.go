@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
 )
 
 func TestUpsertForwardedRequest_NewRow(t *testing.T) {

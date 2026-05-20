@@ -13,8 +13,8 @@ import (
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
 )
 
 type Publisher interface {

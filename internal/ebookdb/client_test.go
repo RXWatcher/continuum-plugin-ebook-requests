@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
 )
 
 // A broken/hostile upstream can return a huge error body. It must not be

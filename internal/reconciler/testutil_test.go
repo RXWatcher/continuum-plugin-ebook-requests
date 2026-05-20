@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/migrate"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/migrate"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
 )
 
 var (

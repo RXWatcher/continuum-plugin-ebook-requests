@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/server"
 )
 
 func TestHealthOK(t *testing.T) {

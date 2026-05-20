@@ -1,6 +1,6 @@
-# Anna's Archive Downloader Setup, Debugging, And Flows
+# Ebook Requests Setup, Debugging, And Flows
 
-Plugin ID: `continuum.annas-archive-downloader`
+Plugin ID: `continuum.ebook-requests`
 Version documented: `0.1.0`
 
 ## Purpose

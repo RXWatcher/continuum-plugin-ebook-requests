@@ -1,6 +1,6 @@
-# Anna's Archive Downloader for Continuum
+# Ebook Requests for Continuum
 
-`continuum.annas-archive-downloader` is an ebook request/download provider for
+`continuum.ebook-requests` is an ebook request/download provider for
 the Continuum Ebooks portal. It connects Continuum to an operator-managed
 Anna's Archive style downloader service, forwards approved ebook requests, and
 tracks those jobs until they are fulfilled or failed.
@@ -35,7 +35,7 @@ content itself.
 
 | Key | Required | Description |
 |---|---|---|
-| `database_url` | yes | Postgres DSN for the `annas_archive_downloader` schema. |
+| `database_url` | yes | Postgres DSN for the `ebook_requests` schema. |
 | `base_url` | yes | Upstream downloader service base URL, no trailing slash. |
 | `api_key` | yes | API key sent to the upstream service as `X-API-Key`. |
 | `default_cover_size` | no | Cover size requested from upstream when supported. |
@@ -44,15 +44,15 @@ content itself.
 Example DSN:
 
 ```text
-postgres://plugin_annas_archive_downloader:password@postgres:5432/continuum?search_path=annas_archive_downloader&sslmode=disable
+postgres://plugin_ebook_requests:password@postgres:5432/continuum?search_path=ebook_requests&sslmode=disable
 ```
 
 ## Database Setup
 
 ```sql
-CREATE ROLE plugin_annas_archive_downloader WITH LOGIN PASSWORD '<chosen>';
-CREATE SCHEMA annas_archive_downloader AUTHORIZATION plugin_annas_archive_downloader;
-GRANT CONNECT ON DATABASE continuum TO plugin_annas_archive_downloader;
+CREATE ROLE plugin_ebook_requests WITH LOGIN PASSWORD '<chosen>';
+CREATE SCHEMA ebook_requests AUTHORIZATION plugin_ebook_requests;
+GRANT CONNECT ON DATABASE continuum TO plugin_ebook_requests;
 ```
 
 ## Event Flow
@@ -75,5 +75,5 @@ Outbound event suffixes:
 
 ```bash
 go test ./...
-go build -buildvcs=false -o continuum-plugin-annas-archive-downloader ./cmd/continuum-plugin-annas-archive-downloader
+go build -buildvcs=false -o continuum-plugin-ebook-requests ./cmd/continuum-plugin-ebook-requests
 ```

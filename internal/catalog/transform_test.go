@@ -3,8 +3,8 @@ package catalog_test
 import (
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/catalog"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/catalog"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
 )
 
 // The upstream cover endpoint requires X-API-Key, so the cover URL must point

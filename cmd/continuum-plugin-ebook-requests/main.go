@@ -17,23 +17,23 @@ import (
 	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
 	sdkruntime "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/httproutes"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/migrate"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/reconciler"
-	pluginrt "github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/runtime"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/scheduler"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/consumer"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/event"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/httproutes"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/migrate"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/reconciler"
+	pluginrt "github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/runtime"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/scheduler"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
 )
 
 //go:embed manifest.json
 var manifestRaw []byte
 
 func main() {
-	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-annas-archive-downloader"})
+	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-ebook-requests"})
 
 	manifest, err := loadManifest()
 	if err != nil {
@@ -99,11 +99,11 @@ func main() {
 		if ebkClient != nil {
 			consumerDepsP.Store(&consumer.Deps{
 				Store: st, Pub: ev, EBK: ebkClient,
-				PluginID: "continuum.annas-archive-downloader",
+				PluginID: "continuum.ebook-requests",
 			})
 			reconcilerPtr.Store(reconciler.New(reconciler.Deps{
 				Store: st, Pub: ev, EBK: ebkClient,
-				PluginID: "continuum.annas-archive-downloader",
+				PluginID: "continuum.ebook-requests",
 			}))
 		} else {
 			consumerDepsP.Store(nil)

@@ -11,10 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/catalog"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/runtime"
-	"github.com/ContinuumApp/continuum-plugin-annas-archive-downloader/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/catalog"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/runtime"
+	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
 )
 
 type Deps struct {
@@ -91,11 +91,11 @@ func (s *Server) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(`<!doctype html>
 <html lang="en" data-theme="` + adminTheme(r) + `">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Anna's Archive Downloader</title><style>` + adminThemeCSS() + `</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ebook Requests</title><style>` + adminThemeCSS() + `</style></head>
 <body>
 <main class="shell">
 <a class="back" href="/admin/plugins">&larr; Plugins</a>
-<header><p class="eyebrow">Ebook request provider</p><h1>Anna's Archive Downloader</h1><p>Ebook search, request forwarding, and reconciliation for the Ebooks portal.</p></header>
+<header><p class="eyebrow">Ebook request provider</p><h1>Ebook Requests</h1><p>Ebook search, request forwarding, and reconciliation for the Ebooks portal.</p></header>
 <nav class="tabs" aria-label="Anna's Archive admin sections">
 <button class="tab active" data-tab-target="readiness" type="button">Readiness</button>
 <button class="tab" data-tab-target="config" type="button">Config</button>
@@ -184,7 +184,7 @@ func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, 200, map[string]any{
-		"plugin_id":  "continuum.annas-archive-downloader",
+		"plugin_id":  "continuum.ebook-requests",
 		"role":       "download_provider",
 		"configured": s.deps.Config.ProviderConfigured(),
 		"base_url":   s.deps.Config.BaseURL,
