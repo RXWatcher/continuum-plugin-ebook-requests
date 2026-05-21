@@ -1,44 +1,54 @@
 # Ebook Requests for Continuum
 
-`continuum.ebook-requests` is an ebook request/download provider for
-the Continuum Ebooks portal. It connects Continuum to an operator-managed
-Anna's Archive style downloader service, forwards approved ebook requests, and
-tracks those jobs until they are fulfilled or failed.
+`continuum.ebook-requests` is a request/download provider for the [`continuum.ebooks`](https://github.com/RXWatcher/continuum-plugin-ebooks) portal. It receives approved ebook requests, forwards them to an operator-managed Anna's-Archive-style downloader service, and reconciles job state until each request is fulfilled or failed.
 
-This plugin is not an ebook library backend. It does not expose shelves,
-catalog browsing, file streaming, OPDS, Kobo, or Kindle delivery. Install it
-beside `continuum.ebooks` when you want the Ebooks request flow to use a
-separate downloader service.
+This plugin is a connector, not a library backend. It does not expose shelves, OPDS, Kobo, or Kindle delivery. Use it only with content you are legally allowed to access.
 
-Use this plugin only with content you are legally allowed to access. The plugin
-is a connector to your configured downloader; it does not provide or host
-content itself.
+(Previously distributed as `continuum-plugin-annas-archive-downloader`.)
 
-## Detailed Operations Docs
+## Category
 
-- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+Lives under **Books / Ebooks** in the Continuum catalog.
 
-## Features
+## Capabilities
 
-- Listens for `plugin.continuum.ebooks.request_submitted` events.
-- Ignores requests targeted at other download providers.
-- Searches the upstream downloader for external candidates.
-- Forwards selected requests to the downloader API with `X-API-Key`
-  authentication.
-- Stores forwarded request metadata and reconciles non-terminal jobs.
-- Publishes request acknowledgement, status, fulfillment, and failure events
-  back to Continuum.
-- Exposes authenticated `/api/v1/*` endpoints for search, request forwarding,
-  status checks, and diagnostics.
+| Type | ID | Purpose |
+| --- | --- | --- |
+| `http_routes.v1` | `backend` | Authenticated `/api/v1/*` API for search, request forwarding, status checks, and diagnostics, plus an admin UI under `/admin`. |
+| `event_consumer.v1` | `request_handler` | Subscribes to `plugin.continuum.ebooks.request_submitted` and forwards targeted requests to the upstream downloader. |
+| `ebook_backend.v1` | `default` | Declares the installation as an ebook `download_provider` (`supports_requests=true`, `supports_catalog=false`, `supports_auto_monitoring=false`). |
+| `scheduled_task.v1` | `reconciler` | Runs every minute (`*/1 * * * *`) to poll non-terminal downloads on the upstream service and publish status transitions. |
+
+## Dependencies
+
+- Consumed by [`continuum.ebooks`](https://github.com/RXWatcher/continuum-plugin-ebooks), which publishes `plugin.continuum.ebooks.request_submitted` and consumes the acknowledgement / status / fulfillment / failure events emitted here.
+- Acts as an alternate request/download provider to [`continuum-plugin-bookwarehouse-ebook`](https://github.com/RXWatcher/continuum-plugin-bookwarehouse-ebook). Only one provider handles a given request; the portal selects the target via `target_plugin_id` / `target_provider_plugin_id` / `provider_plugin_id` on the event payload, and this plugin ignores events targeted elsewhere.
+- For local-filesystem libraries pair with [`continuum-plugin-local-ebooks`](https://github.com/RXWatcher/continuum-plugin-local-ebooks).
+- Host: [`github.com/ContinuumApp/continuum`](https://github.com/ContinuumApp/continuum).
+- SDK: [`github.com/ContinuumApp/continuum-plugin-sdk`](https://github.com/ContinuumApp/continuum-plugin-sdk).
+
+## External services
+
+- **Anna's-Archive-style downloader (EbookDB).** An operator-managed HTTP service that performs the actual searches and downloads. The plugin talks to it over `base_url` using `X-API-Key` authentication and a 30s default timeout. Body reads are capped at 10 MiB and `429 Too Many Requests` responses (with optional `Retry-After`) pause the reconciler globally for up to ten minutes.
+- **Postgres.** A dedicated schema (typically `ebook_requests`) used to persist forwarded request rows and migrations. The pgx pool is sized to at least 16 connections to keep the search API and reconciler from starving each other.
+
+## Request lifecycle
+
+1. A user submits an ebook request in `continuum.ebooks`.
+2. The portal publishes `plugin.continuum.ebooks.request_submitted` with the target provider's plugin ID and request metadata (`request_id`, `title`, `authors`, `isbn`, `format_pref`, ...).
+3. This plugin filters by target plugin ID, persists a `submitted` row, then calls `AddMonitoring` on the upstream downloader (a 10s bounded call). The upstream needs at least a title or an ISBN; requests with neither are recorded as `failed` and the user is notified.
+4. On success the row is upserted with the upstream `external_id` and status `acknowledged`, and `request_acknowledged` is published. On upstream error the row is marked `failed` and `request_failed` is published. Persistence failures nack the event so the host redelivers; a terminal-status guard in the store keeps redelivery idempotent.
+5. The `reconciler` scheduled task polls non-terminal rows once per minute and translates upstream monitoring states (`monitored` / `searching` / `searching_now` → `searching`, `found` / `found_pending` → `found`, `grabbed` / `downloading` → `downloading`, `completed` / `imported` → `imported`, `failed` / `not_found` / `error` → `failed`). Transitions emit `request_status_changed`, terminal states emit `request_fulfilled` (with `fulfilled_book_id`) or `request_failed`.
+6. `continuum.ebooks` consumes those events and updates the user-facing request.
 
 ## Configuration
 
 | Key | Required | Description |
-|---|---|---|
-| `database_url` | yes | Postgres DSN for the `ebook_requests` schema. |
-| `base_url` | yes | Upstream downloader service base URL, no trailing slash. |
-| `api_key` | yes | API key sent to the upstream service as `X-API-Key`. |
-| `default_cover_size` | no | Cover size requested from upstream when supported. |
+| --- | --- | --- |
+| `database_url` | yes | Postgres DSN for the plugin schema. Pool sized to ≥16 connections; override via `?pool_max_conns=N`. |
+| `base_url` | yes | Upstream downloader base URL (http/https, no trailing slash). Validated on `Configure`. |
+| `api_key` | yes | Sent to the upstream as `X-API-Key`. Stripped automatically on cross-host redirects. |
+| `default_cover_size` | no | Cover size hint forwarded to upstream search. |
 | `external_source_priority` | no | JSON array of preferred source/indexer names passed to upstream search. |
 
 Example DSN:
@@ -47,7 +57,7 @@ Example DSN:
 postgres://plugin_ebook_requests:password@postgres:5432/continuum?search_path=ebook_requests&sslmode=disable
 ```
 
-## Database Setup
+Database bootstrap:
 
 ```sql
 CREATE ROLE plugin_ebook_requests WITH LOGIN PASSWORD '<chosen>';
@@ -55,25 +65,32 @@ CREATE SCHEMA ebook_requests AUTHORIZATION plugin_ebook_requests;
 GRANT CONNECT ON DATABASE continuum TO plugin_ebook_requests;
 ```
 
-## Event Flow
+Secrets (`database_url`, `api_key`) are redacted from logs by the `runtime.Config` `slog.LogValuer` / `fmt.Stringer` implementations.
 
-1. A user submits an ebook request in `continuum.ebooks`.
-2. The Ebooks portal emits `request_submitted` for the selected download
-   provider.
-3. This plugin searches or forwards the request to the configured downloader.
-4. The downloader job is acknowledged, polled, and eventually marked fulfilled
-   or failed.
+## Event subscriptions
 
-Outbound event suffixes:
+Subscribed:
 
-- `request_acknowledged`
-- `request_status_changed`
-- `request_fulfilled`
-- `request_failed`
+- `plugin.continuum.ebooks.request_submitted` — filtered by target plugin ID; events for other providers are acked and dropped.
 
-## Build And Test
+Published (suffixes; the host namespaces them under this plugin's ID):
+
+- `request_acknowledged` — upstream accepted the job; includes `external_id`.
+- `request_status_changed` — non-terminal transition observed by the reconciler; includes `status`.
+- `request_fulfilled` — upstream reached `completed` / `imported`; includes `fulfilled_book_id`.
+- `request_failed` — validation, upstream, or terminal failure; includes `reason`.
+
+## Detailed docs
+
+- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+
+## Build and release
+
+Local build and tests:
 
 ```bash
-go test ./...
-go build -buildvcs=false -o continuum-plugin-ebook-requests ./cmd/continuum-plugin-ebook-requests
+make build
+make test
 ```
+
+CI builds linux-amd64 binaries on push to main via the reusable workflow in [RXWatcher/continuum-plugin-repository](https://github.com/RXWatcher/continuum-plugin-repository) and publishes them to the catalog at [`./binaries/`](https://github.com/RXWatcher/continuum-plugin-repository/tree/main/binaries).
