@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/server"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/server"
 )
 
 func TestHealthOK(t *testing.T) {

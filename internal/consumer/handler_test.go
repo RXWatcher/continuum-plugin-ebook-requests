@@ -11,9 +11,9 @@ import (
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/consumer"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/store"
 )
 
 type fakePub struct {

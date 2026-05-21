@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	pluginrt "github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/runtime"
+	pluginrt "github.com/RXWatcher/continuum-plugin-ebook-requests/internal/runtime"
 )
 
 type Store struct {

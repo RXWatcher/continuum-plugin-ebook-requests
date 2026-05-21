@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
 )
 
 func ToSummary(b ebookdb.Book) EbookSummary {

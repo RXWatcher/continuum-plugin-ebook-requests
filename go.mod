@@ -1,4 +1,4 @@
-module github.com/ContinuumApp/continuum-plugin-ebook-requests
+module github.com/RXWatcher/continuum-plugin-ebook-requests
 
 go 1.26.0
 

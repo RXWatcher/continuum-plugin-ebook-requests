@@ -17,16 +17,16 @@ import (
 	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
 	sdkruntime "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/consumer"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/event"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/httproutes"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/migrate"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/reconciler"
-	pluginrt "github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/runtime"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/scheduler"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/consumer"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/event"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/httproutes"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/migrate"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/reconciler"
+	pluginrt "github.com/RXWatcher/continuum-plugin-ebook-requests/internal/runtime"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/scheduler"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/server"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/store"
 )
 
 //go:embed manifest.json

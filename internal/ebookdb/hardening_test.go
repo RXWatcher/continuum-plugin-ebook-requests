@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
 )
 
 // The upstream API key must not be forwarded to a different host when the

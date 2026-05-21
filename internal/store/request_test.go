@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/store"
 )
 
 func TestUpsertForwardedRequest_NewRow(t *testing.T) {

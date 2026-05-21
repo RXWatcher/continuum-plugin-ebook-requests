@@ -7,7 +7,7 @@ import (
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/reconciler"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/reconciler"
 )
 
 func TestTaskID(t *testing.T) {

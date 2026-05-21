@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/ebookdb"
-	"github.com/ContinuumApp/continuum-plugin-ebook-requests/internal/store"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/store"
 )
 
 // tickTimeout caps a full Tick invocation. The scheduler fires this task on
