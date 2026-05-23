@@ -36,7 +36,7 @@ func (c *Client) AddMonitoring(ctx context.Context, r MonitoringRequest) (Monito
 	}
 	searchResult := map[string]any{
 		"title":  r.Title,
-		"source": "continuum",
+		"source": "silo",
 	}
 	if len(r.Authors) > 0 {
 		searchResult["authors"] = r.Authors

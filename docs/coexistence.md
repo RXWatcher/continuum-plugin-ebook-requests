@@ -1,15 +1,15 @@
 # Coexistence with other ebook providers
 
-`continuum.ebook-requests` is *one* possible request/download provider
-for `continuum.ebooks`. The other one shipped today is
-[`continuum-plugin-bookwarehouse-ebook`](https://github.com/RXWatcher/continuum-plugin-bookwarehouse-ebook).
+`silo.ebook-requests` is *one* possible request/download provider
+for `silo.ebooks`. The other one shipped today is
+[`silo-plugin-bookwarehouse-ebook`](https://github.com/RXWatcher/silo-plugin-bookwarehouse-ebook).
 Operators can run more than one installed at the same time, but for any
 given request **exactly one** provider must handle it.
 
 ## How routing actually works
 
-The portal (`continuum.ebooks`) publishes
-`plugin.continuum.ebooks.request_submitted` with a target plugin ID on
+The portal (`silo.ebooks`) publishes
+`plugin.silo.ebooks.request_submitted` with a target plugin ID on
 the payload. This plugin's consumer checks three keys, in order, for the
 target:
 
@@ -18,7 +18,7 @@ target:
 3. `provider_plugin_id`
 
 The first one present (after `strings.TrimSpace`) is the target. If the
-target equals `continuum.ebook-requests` (our plugin ID, taken from the
+target equals `silo.ebook-requests` (our plugin ID, taken from the
 manifest at `Configure` time), the consumer processes the event.
 Otherwise the consumer **acks and drops** — the event is gone as far as
 this plugin is concerned, and another plugin's consumer will pick it up.
@@ -74,8 +74,8 @@ the portal payload — log the payload at the portal side and inspect
 
 ## Migrating from the old plugin ID
 
-This plugin used to ship as `continuum.annas-archive-downloader`. The new
-ID is `continuum.ebook-requests`. If you're migrating:
+This plugin used to ship as `silo.annas-archive-downloader`. The new
+ID is `silo.ebook-requests`. If you're migrating:
 
 1. Install the new plugin and configure it.
 2. Switch the Ebooks provider selection to the new installation ID.

@@ -13,7 +13,7 @@ Plus `schema_migrations` for the embedded golang-migrate runner.
 ## Pool sizing
 
 The pgx pool's `MaxConns` is bumped to at least **16** at startup
-(`cmd/continuum-plugin-ebook-requests/main.go`). The pgx default scales
+(`cmd/silo-plugin-ebook-requests/main.go`). The pgx default scales
 with `GOMAXPROCS` and can be as low as 4, which starves the search API
 against the reconciler. 16 is generous without saturating a shared
 Postgres.
@@ -143,7 +143,7 @@ host config.
   `search_path` to the plugin schema.
 - Don't grant the role write access to `public` or to other plugin
   schemas. The plugin only needs its own schema.
-- Back up `forwarded_request` along with the rest of the Continuum DB;
+- Back up `forwarded_request` along with the rest of the Silo DB;
   it's the source of truth for the request queue. The upstream's
   monitoring jobs are not a substitute — they don't carry the portal's
   `request_id`.

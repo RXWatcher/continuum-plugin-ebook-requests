@@ -9,11 +9,11 @@ import (
 
 	"google.golang.org/protobuf/types/known/structpb"
 
-	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
+	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
 
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/consumer"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/store"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/consumer"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/store"
 )
 
 type fakePub struct {
@@ -49,7 +49,7 @@ func newConsumerForTest(t *testing.T, upstream *httptest.Server) (*consumer.Hand
 	ebk := ebookdb.NewClient(upstream.URL, "k")
 	deps := &consumer.Deps{
 		Store: st, Pub: pub, EBK: ebk,
-		PluginID: "continuum.ebook-requests",
+		PluginID: "silo.ebook-requests",
 	}
 	h := consumer.New(func() *consumer.Deps { return deps }, nil)
 	return h, pub, st
@@ -62,10 +62,10 @@ func TestConsumer_HappyPath_EmitsAcknowledged(t *testing.T) {
 	defer up.Close()
 	h, pub, st := newConsumerForTest(t, up)
 	_, _ = h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
-		EventName: "plugin.continuum.ebooks.request_submitted",
+		EventName: "plugin.silo.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-1",
-			"target_plugin_id": "continuum.ebook-requests",
+			"target_plugin_id": "silo.ebook-requests",
 			"title":            "X",
 			"source_id":        "md5-x",
 			"format_pref":      "epub",
@@ -89,10 +89,10 @@ func TestConsumer_MissingMetadata_EmitsFailed(t *testing.T) {
 	defer up.Close()
 	h, pub, st := newConsumerForTest(t, up)
 	_, _ = h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
-		EventName: "plugin.continuum.ebooks.request_submitted",
+		EventName: "plugin.silo.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-2",
-			"target_plugin_id": "continuum.ebook-requests",
+			"target_plugin_id": "silo.ebook-requests",
 			// no title, no isbn
 		}),
 	})
@@ -112,10 +112,10 @@ func TestConsumer_SkipsTargetMismatch(t *testing.T) {
 	defer up.Close()
 	h, pub, _ := newConsumerForTest(t, up)
 	_, _ = h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
-		EventName: "plugin.continuum.ebooks.request_submitted",
+		EventName: "plugin.silo.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-3",
-			"target_plugin_id": "continuum.other-ebook-provider",
+			"target_plugin_id": "silo.other-ebook-provider",
 			"title":            "X",
 		}),
 	})
@@ -130,8 +130,8 @@ func TestConsumer_SkipsMalformedOrConflictingTargets(t *testing.T) {
 		{"request_id": "r-numeric", "target_plugin_id": float64(1), "title": "X"},
 		{
 			"request_id":                "r-conflict",
-			"target_plugin_id":          "continuum.other-ebook-provider",
-			"target_provider_plugin_id": "continuum.ebook-requests",
+			"target_plugin_id":          "silo.other-ebook-provider",
+			"target_provider_plugin_id": "silo.ebook-requests",
 			"title":                     "X",
 		},
 	} {
@@ -140,7 +140,7 @@ func TestConsumer_SkipsMalformedOrConflictingTargets(t *testing.T) {
 		}))
 		h, pub, _ := newConsumerForTest(t, up)
 		_, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
-			EventName: "plugin.continuum.ebooks.request_submitted",
+			EventName: "plugin.silo.ebooks.request_submitted",
 			Payload:   mustStruct(t, payload),
 		})
 		up.Close()
@@ -161,14 +161,14 @@ func TestConsumer_NilPublisherDoesNotPanic(t *testing.T) {
 	st := newTestStore(t)
 	deps := &consumer.Deps{
 		Store: st, Pub: nil, EBK: ebookdb.NewClient(up.URL, "k"),
-		PluginID: "continuum.ebook-requests",
+		PluginID: "silo.ebook-requests",
 	}
 	h := consumer.New(func() *consumer.Deps { return deps }, nil)
 	_, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
-		EventName: "plugin.continuum.ebooks.request_submitted",
+		EventName: "plugin.silo.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-nil-pub",
-			"target_plugin_id": "continuum.ebook-requests",
+			"target_plugin_id": "silo.ebook-requests",
 			"title":            "X",
 		}),
 	})
@@ -183,10 +183,10 @@ func TestConsumer_NilPublisherDoesNotPanic(t *testing.T) {
 func TestConsumer_NotConfigured_Nacks(t *testing.T) {
 	h := consumer.New(func() *consumer.Deps { return nil }, nil)
 	resp, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
-		EventName: "plugin.continuum.ebooks.request_submitted",
+		EventName: "plugin.silo.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-cfg",
-			"target_plugin_id": "continuum.ebook-requests",
+			"target_plugin_id": "silo.ebook-requests",
 			"source_id":        "md5-x",
 		}),
 	})
@@ -201,10 +201,10 @@ func TestConsumer_NotConfigured_Nacks(t *testing.T) {
 func TestConsumer_NilDepsFn_Nacks(t *testing.T) {
 	h := consumer.New(nil, nil)
 	_, err := h.HandleEvent(context.Background(), &pluginv1.HandleEventRequest{
-		EventName: "plugin.continuum.ebooks.request_submitted",
+		EventName: "plugin.silo.ebooks.request_submitted",
 		Payload: mustStruct(t, map[string]any{
 			"request_id":       "r-cfg",
-			"target_plugin_id": "continuum.ebook-requests",
+			"target_plugin_id": "silo.ebook-requests",
 			"title":            "X",
 		}),
 	})

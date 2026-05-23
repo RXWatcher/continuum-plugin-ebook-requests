@@ -11,10 +11,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
+	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
 
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/store"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/store"
 )
 
 type Publisher interface {
@@ -44,7 +44,7 @@ func New(depsFn func() *Deps, logger hclog.Logger) *Handler {
 }
 
 func (h *Handler) HandleEvent(ctx context.Context, req *pluginv1.HandleEventRequest) (*pluginv1.HandleEventResponse, error) {
-	if req.GetEventName() != "plugin.continuum.ebooks.request_submitted" {
+	if req.GetEventName() != "plugin.silo.ebooks.request_submitted" {
 		return &pluginv1.HandleEventResponse{}, nil
 	}
 	if req.GetPayload() == nil {

@@ -13,11 +13,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/catalog"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/reconciler"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/runtime"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/store"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/catalog"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/reconciler"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/runtime"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/store"
 )
 
 // stuckThreshold is how long a non-terminal row can sit without progress
@@ -367,7 +367,7 @@ setInterval(loadReconciler,30000);
 }
 
 func adminTheme(r *http.Request) string {
-	theme := r.Header.Get("X-Continuum-Theme")
+	theme := r.Header.Get("X-Silo-Theme")
 	if theme == "" {
 		theme = r.URL.Query().Get("theme")
 	}
@@ -409,7 +409,7 @@ func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, 200, map[string]any{
-		"plugin_id":  "continuum.ebook-requests",
+		"plugin_id":  "silo.ebook-requests",
 		"role":       "download_provider",
 		"configured": s.deps.Config.ProviderConfigured(),
 		"base_url":   s.deps.Config.BaseURL,

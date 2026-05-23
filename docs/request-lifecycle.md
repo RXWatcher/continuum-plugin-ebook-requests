@@ -10,13 +10,13 @@ event stream.
 ## Stages
 
 ```
-  continuum.ebooks                    this plugin                       upstream EbookDB
+  silo.ebooks                    this plugin                       upstream EbookDB
   ----------------                    -----------                       ----------------
   user submits request
         │
         ▼
   publishes
-  plugin.continuum.ebooks
+  plugin.silo.ebooks
   .request_submitted ──────► consumer.HandleEvent
                                   │
                                   ├─ target plugin ID ≠ ours? ack + drop
@@ -66,7 +66,7 @@ failed to poll.
 ## Events the plugin emits
 
 All names are suffixes; the host namespaces them under
-`plugin.continuum.ebook-requests.<suffix>`.
+`plugin.silo.ebook-requests.<suffix>`.
 
 | Event | When | Payload (camelCase variants are also included for compatibility) |
 | --- | --- | --- |

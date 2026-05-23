@@ -1,30 +1,30 @@
-# Ebook Requests for Continuum
+# Ebook Requests for Silo
 
-`continuum.ebook-requests` is a request/download provider for the [`continuum.ebooks`](https://github.com/RXWatcher/continuum-plugin-ebooks) portal. It receives approved ebook requests, forwards them to an operator-managed Anna's-Archive-style downloader service, and reconciles job state until each request is fulfilled or failed.
+`silo.ebook-requests` is a request/download provider for the [`silo.ebooks`](https://github.com/RXWatcher/silo-plugin-ebooks) portal. It receives approved ebook requests, forwards them to an operator-managed Anna's-Archive-style downloader service, and reconciles job state until each request is fulfilled or failed.
 
 This plugin is a connector, not a library backend. It does not expose shelves, OPDS, Kobo, or Kindle delivery. Use it only with content you are legally allowed to access.
 
-(Previously distributed as `continuum-plugin-annas-archive-downloader`.)
+(Previously distributed as `silo-plugin-annas-archive-downloader`.)
 
 ## Category
 
-Lives under **Books / Ebooks** in the Continuum catalog.
+Lives under **Books / Ebooks** in the Silo catalog.
 
 ## Capabilities
 
 | Type | ID | Purpose |
 | --- | --- | --- |
 | `http_routes.v1` | `backend` | Authenticated `/api/v1/*` API for search, request forwarding, status checks, and diagnostics, plus an admin UI under `/admin`. |
-| `event_consumer.v1` | `request_handler` | Subscribes to `plugin.continuum.ebooks.request_submitted` and forwards targeted requests to the upstream downloader. |
+| `event_consumer.v1` | `request_handler` | Subscribes to `plugin.silo.ebooks.request_submitted` and forwards targeted requests to the upstream downloader. |
 | `ebook_backend.v1` | `default` | Declares the installation as an ebook `download_provider` (`supports_requests=true`, `supports_catalog=false`, `supports_auto_monitoring=false`). |
 | `scheduled_task.v1` | `reconciler` | Runs every minute (`*/1 * * * *`) to poll non-terminal downloads on the upstream service and publish status transitions. |
 
 ## Dependencies
 
-- Consumed by [`continuum.ebooks`](https://github.com/RXWatcher/continuum-plugin-ebooks), which publishes `plugin.continuum.ebooks.request_submitted` and consumes the acknowledgement / status / fulfillment / failure events emitted here.
-- Acts as an alternate request/download provider to [`continuum-plugin-bookwarehouse-ebook`](https://github.com/RXWatcher/continuum-plugin-bookwarehouse-ebook). Only one provider handles a given request; the portal selects the target via `target_plugin_id` / `target_provider_plugin_id` / `provider_plugin_id` on the event payload, and this plugin ignores events targeted elsewhere.
-- For local-filesystem libraries pair with [`continuum-plugin-local-ebooks`](https://github.com/RXWatcher/continuum-plugin-local-ebooks).
-- Host: [`github.com/ContinuumApp/continuum`](https://github.com/ContinuumApp/continuum).
+- Consumed by [`silo.ebooks`](https://github.com/RXWatcher/silo-plugin-ebooks), which publishes `plugin.silo.ebooks.request_submitted` and consumes the acknowledgement / status / fulfillment / failure events emitted here.
+- Acts as an alternate request/download provider to [`silo-plugin-bookwarehouse-ebook`](https://github.com/RXWatcher/silo-plugin-bookwarehouse-ebook). Only one provider handles a given request; the portal selects the target via `target_plugin_id` / `target_provider_plugin_id` / `provider_plugin_id` on the event payload, and this plugin ignores events targeted elsewhere.
+- For local-filesystem libraries pair with [`silo-plugin-local-ebooks`](https://github.com/RXWatcher/silo-plugin-local-ebooks).
+- Host: [`github.com/ContinuumApp/silo`](https://github.com/ContinuumApp/silo).
 - SDK: [`github.com/ContinuumApp/continuum-plugin-sdk`](https://github.com/ContinuumApp/continuum-plugin-sdk).
 
 ## External services
@@ -34,12 +34,12 @@ Lives under **Books / Ebooks** in the Continuum catalog.
 
 ## Request lifecycle
 
-1. A user submits an ebook request in `continuum.ebooks`.
-2. The portal publishes `plugin.continuum.ebooks.request_submitted` with the target provider's plugin ID and request metadata (`request_id`, `title`, `authors`, `isbn`, `format_pref`, ...).
+1. A user submits an ebook request in `silo.ebooks`.
+2. The portal publishes `plugin.silo.ebooks.request_submitted` with the target provider's plugin ID and request metadata (`request_id`, `title`, `authors`, `isbn`, `format_pref`, ...).
 3. This plugin filters by target plugin ID, persists a `submitted` row, then calls `AddMonitoring` on the upstream downloader (a 10s bounded call). The upstream needs at least a title or an ISBN; requests with neither are recorded as `failed` and the user is notified.
 4. On success the row is upserted with the upstream `external_id` and status `acknowledged`, and `request_acknowledged` is published. On upstream error the row is marked `failed` and `request_failed` is published. Persistence failures nack the event so the host redelivers; a terminal-status guard in the store keeps redelivery idempotent.
 5. The `reconciler` scheduled task polls non-terminal rows once per minute and translates upstream monitoring states (`monitored` / `searching` / `searching_now` → `searching`, `found` / `found_pending` → `found`, `grabbed` / `downloading` → `downloading`, `completed` / `imported` → `imported`, `failed` / `not_found` / `error` → `failed`). Transitions emit `request_status_changed`, terminal states emit `request_fulfilled` (with `fulfilled_book_id`) or `request_failed`.
-6. `continuum.ebooks` consumes those events and updates the user-facing request.
+6. `silo.ebooks` consumes those events and updates the user-facing request.
 
 ## Configuration
 
@@ -54,7 +54,7 @@ Lives under **Books / Ebooks** in the Continuum catalog.
 Example DSN:
 
 ```text
-postgres://plugin_ebook_requests:password@postgres:5432/continuum?search_path=ebook_requests&sslmode=disable
+postgres://plugin_ebook_requests:password@postgres:5432/silo?search_path=ebook_requests&sslmode=disable
 ```
 
 Database bootstrap:
@@ -62,7 +62,7 @@ Database bootstrap:
 ```sql
 CREATE ROLE plugin_ebook_requests WITH LOGIN PASSWORD '<chosen>';
 CREATE SCHEMA ebook_requests AUTHORIZATION plugin_ebook_requests;
-GRANT CONNECT ON DATABASE continuum TO plugin_ebook_requests;
+GRANT CONNECT ON DATABASE silo TO plugin_ebook_requests;
 ```
 
 Secrets (`database_url`, `api_key`) are redacted from logs by the `runtime.Config` `slog.LogValuer` / `fmt.Stringer` implementations.
@@ -71,7 +71,7 @@ Secrets (`database_url`, `api_key`) are redacted from logs by the `runtime.Confi
 
 Subscribed:
 
-- `plugin.continuum.ebooks.request_submitted` — filtered by target plugin ID; events for other providers are acked and dropped.
+- `plugin.silo.ebooks.request_submitted` — filtered by target plugin ID; events for other providers are acked and dropped.
 
 Published (suffixes; the host namespaces them under this plugin's ID):
 
@@ -93,4 +93,4 @@ make build
 make test
 ```
 
-CI builds linux-amd64 binaries on push to main via the reusable workflow in [RXWatcher/continuum-plugin-repository](https://github.com/RXWatcher/continuum-plugin-repository) and publishes them to the catalog at [`./binaries/`](https://github.com/RXWatcher/continuum-plugin-repository/tree/main/binaries).
+CI builds linux-amd64 binaries on push to main via the reusable workflow in [RXWatcher/silo-plugin-repository](https://github.com/RXWatcher/silo-plugin-repository) and publishes them to the catalog at [`./binaries/`](https://github.com/RXWatcher/silo-plugin-repository/tree/main/binaries).

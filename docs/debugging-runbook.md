@@ -10,7 +10,7 @@ in place:
 
 1. `database_url`, `base_url`, `api_key` all set.
 2. The plugin database role exists with the correct schema authorization.
-3. In `continuum.ebooks` admin settings, this installation is selected as
+3. In `silo.ebooks` admin settings, this installation is selected as
    the request/download provider. **This is the most common reason a
    request never reaches the plugin** — see [coexistence.md](coexistence.md).
 4. `/api/v1/admin/diagnostics` shows `configured: true`, `database.ok:
@@ -36,8 +36,8 @@ Causes (most to least common):
    host redelivers. If `Configure` never succeeds (DB unreachable, bad
    DSN) the event sits unacked. Check plugin logs at startup for the
    manifest load / migrate / pgxpool sequence.
-3. **Event not actually published.** Check `continuum.ebooks` logs for
-   `plugin.continuum.ebooks.request_submitted`.
+3. **Event not actually published.** Check `silo.ebooks` logs for
+   `plugin.silo.ebooks.request_submitted`.
 
 ## "Row is stuck on `submitted`"
 
@@ -160,4 +160,4 @@ host decides log level.
 4. Watch the row in the Request queue tab; it should move
    `submitted` → `acknowledged` within a second, then through
    `searching`/`downloading` over the next minutes, then to `imported`.
-5. Confirm `continuum.ebooks` shows the corresponding book.
+5. Confirm `silo.ebooks` shows the corresponding book.

@@ -3,8 +3,8 @@ package catalog_test
 import (
 	"testing"
 
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/catalog"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/catalog"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/ebookdb"
 )
 
 // The upstream cover endpoint requires X-API-Key, so the cover URL must point

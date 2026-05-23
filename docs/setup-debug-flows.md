@@ -1,7 +1,7 @@
 # Ebook Requests Operator Docs
 
-Plugin ID: `continuum.ebook-requests`
-Previous ID: `continuum.annas-archive-downloader`
+Plugin ID: `silo.ebook-requests`
+Previous ID: `silo.annas-archive-downloader`
 
 These docs are for operators running the plugin. The [README](../README.md)
 covers what the plugin is, its capabilities, configuration keys, and the

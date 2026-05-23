@@ -1,6 +1,6 @@
 # Status translation
 
-The upstream EbookDB and the Continuum portal use different vocabularies
+The upstream EbookDB and the Silo portal use different vocabularies
 for "where is this request right now". This plugin owns the mapping. If
 you ever see a status mismatch between the upstream UI and the portal,
 this is where the translation lives.
@@ -61,9 +61,9 @@ no monotonic version per row. If two ticks observe the same status they
 produce zero events; if a tick is missed entirely (e.g. backoff window),
 the next successful poll catches up by direct comparison.
 
-## What `continuum.ebooks` does with these
+## What `silo.ebooks` does with these
 
-`continuum.ebooks` consumes these events and updates the user-visible
+`silo.ebooks` consumes these events and updates the user-visible
 request. From the user's perspective the visible states are roughly:
 
 - `submitted` / `acknowledged` → "Searching"
@@ -71,5 +71,5 @@ request. From the user's perspective the visible states are roughly:
 - `imported` → "Available" (with `fulfilled_book_id` linking to the book)
 - `failed` → "Failed" (with `reason`)
 
-Exact rendering is `continuum.ebooks`' concern. This plugin only commits
+Exact rendering is `silo.ebooks`' concern. This plugin only commits
 to the four emitted events and to the schema of their payloads.

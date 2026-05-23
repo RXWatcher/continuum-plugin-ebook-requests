@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/ebookdb"
 )
 
 // A broken/hostile upstream can return a huge error body. It must not be

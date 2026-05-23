@@ -1,6 +1,6 @@
-/continuum-plugin-annas-archive-downloader
+/silo-plugin-annas-archive-downloader
 *.test
 *.out
 .envrc
 .claude/
-/continuum-plugin-ebook-requests
+/silo-plugin-ebook-requests

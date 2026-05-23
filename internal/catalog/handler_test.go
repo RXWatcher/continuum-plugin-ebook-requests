@@ -9,8 +9,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/catalog"
-	"github.com/RXWatcher/continuum-plugin-ebook-requests/internal/ebookdb"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/catalog"
+	"github.com/RXWatcher/silo-plugin-ebook-requests/internal/ebookdb"
 )
 
 func upstream(t *testing.T) *httptest.Server {

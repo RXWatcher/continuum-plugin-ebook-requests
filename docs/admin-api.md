@@ -60,18 +60,18 @@ mount prefix.
 ## Quick examples
 
 Diagnostics from the host (assuming the plugin is mounted under
-`/plugins/continuum.ebook-requests/`):
+`/plugins/silo.ebook-requests/`):
 
 ```bash
 curl -s -H "Cookie: $admin_session" \
-  https://continuum.example.com/plugins/continuum.ebook-requests/api/v1/admin/diagnostics | jq
+  https://silo.example.com/plugins/silo.ebook-requests/api/v1/admin/diagnostics | jq
 ```
 
 Force a reconciler run after an upstream outage:
 
 ```bash
 curl -s -XPOST -H "Cookie: $admin_session" \
-  https://continuum.example.com/plugins/continuum.ebook-requests/api/v1/admin/reconciler/run
+  https://silo.example.com/plugins/silo.ebook-requests/api/v1/admin/reconciler/run
 ```
 
 List stuck rows and retry the first one:
